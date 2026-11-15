@@ -17,6 +17,8 @@ const TILEMAP_KEY_PREFIX = 'map-';
 const LABEL_SIZE = 8;
 
 const DEPTH = {
+  /** Вода — над артом, но под предметами, кораблём и героями: их всегда видно. */
+  water: 1,
   mechanism: 2,
   pickup: 2,
   item: 3,
@@ -25,7 +27,6 @@ const DEPTH = {
   carried: 10,
   boss: 6,
   projectile: 7,
-  water: 8,
   overlay: 100,
 } as const;
 

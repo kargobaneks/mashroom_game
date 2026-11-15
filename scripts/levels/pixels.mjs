@@ -99,6 +99,38 @@ export class Pix {
     });
   }
 
+  /**
+   * Чёрный контур в 1 px вокруг всего непрозрачного (как у предметов в играх NES):
+   * прозрачный пиксель рядом с непрозрачным становится контуром.
+   */
+  outline(color = NES.black) {
+    const { w, h, data } = this;
+    const opaque = (x, y) => x >= 0 && y >= 0 && x < w && y < h && data[(y * w + x) * 4 + 3] !== 0;
+    const marks = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (opaque(x, y)) continue;
+        if (opaque(x - 1, y) || opaque(x + 1, y) || opaque(x, y - 1) || opaque(x, y + 1))
+          marks.push(x, y);
+      }
+    }
+    for (let i = 0; i < marks.length; i += 2) this.set(marks[i], marks[i + 1], color);
+  }
+
+  /** Наложить непрозрачные пиксели этого холста на dst со сдвигом. */
+  blitOnto(dst, dx, dy) {
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const i = (y * this.w + x) * 4;
+        if (this.data[i + 3] === 0) continue;
+        const tx = x + dx;
+        const ty = y + dy;
+        if (tx < 0 || ty < 0 || tx >= dst.w || ty >= dst.h) continue;
+        this.data.copy(dst.data, (ty * dst.w + tx) * 4, i, i + 4);
+      }
+    }
+  }
+
   /** Плитка 16×16 (x, y — в тайлах) как ключ для поиска одинаковых. */
   tileKey(tx, ty, T) {
     const parts = [];

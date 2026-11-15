@@ -21,53 +21,57 @@ export function buildLevel1Sink() {
   m.solid(0, 0, 0, 11);
   m.solid(111, 111, 0, 14);
 
-  const oven = (col) => {
-    m.prop(K.plateStack(1), col - 1, FLOOR);
-    m.prop(K.oven, col, FLOOR);
+  // Духовки встроены в ряд тумб: тумба (на 32 выше пола) рядом с духовкой (на 48) — ступенька
+  // на неё. Между рядами — стены с полками. Всё стоит где ему место.
+  const COUNTER = FLOOR - 2; // верх тумбы
+  const kitchenRow = (col) => {
+    m.prop(K.counter(4), col, FLOOR);
+    m.prop(K.oven, col + 4, FLOOR);
+    m.prop(K.counter(4), col + 8, FLOOR);
   };
+  const shelf = (col, w, load, row) => m.prop(K.shelf(w, load), col, row + 1);
 
-  // ——— Экран 0 (0–15): духовка, полка с тарелками ———
-  m.point('spawn', 2, FLOOR);
-  m.point('respawn', 2, FLOOR);
-  oven(6);
-  pair(7, OVEN, 'timecode', 'timecode');
-  m.prop(K.shelf(4, 'plates'), 11, SHELF_HIGH + 1);
+  // ——— Экран 0 (0–15): ряд тумб с духовкой ———
+  m.point('spawn', 1, FLOOR);
+  m.point('respawn', 1, FLOOR);
+  kitchenRow(3); // тумба 3–6, духовка 7–10, тумба 11–14
+  pair(8, OVEN, 'timecode', 'timecode');
+  shelf(11, 4, 'plates', SHELF_HIGH);
   tc(12, SHELF_HIGH);
   tc(13, SHELF_HIGH);
 
   // ——— Экран 1 (16–31): стена с полками ———
-  m.prop(K.shelf(5, 'jars'), 18, SHELF_LOW + 1);
+  shelf(18, 5, 'jars', SHELF_LOW);
   pair(19, SHELF_LOW);
-  m.prop(K.shelf(4, 'pots'), 25, SHELF_HIGH + 1);
+  shelf(25, 4, 'pots', SHELF_HIGH);
   tc(26, SHELF_HIGH);
   tc(27, SHELF_HIGH);
   enemy('bot', 24, FLOOR);
 
-  // ——— Экран 2 (32–47): духовка, звёздочка ———
-  pair(33, FLOOR, null, 'timecode');
-  oven(36);
-  tc(37, OVEN - 1);
-  tc(38, OVEN - 2);
-  tc(39, OVEN - 1);
+  // ——— Экран 2 (32–47): ряд тумб с духовкой ———
+  kitchenRow(33); // 33–36, 37–40, 41–44
+  pair(34, COUNTER, null, 'timecode');
+  tc(38, OVEN - 1);
+  tc(39, OVEN - 2);
   enemy('asterisk', 40, 3);
 
-  // ——— Экран 3 (48–63): стена с полками, бот ———
-  m.prop(K.shelf(5, 'plates'), 50, SHELF_LOW + 1);
+  // ——— Экран 3 (48–63): стена с полками ———
+  shelf(50, 5, 'plates', SHELF_LOW);
   pair(51, SHELF_LOW);
-  m.prop(K.shelf(4, 'jars'), 57, SHELF_HIGH + 1);
+  shelf(57, 4, 'jars', SHELF_HIGH);
   tc(58, SHELF_HIGH);
   enemy('bot', 58, FLOOR);
 
-  // ——— Экран 4 (64–79): духовка, звёздочка ———
-  stack(65, FLOOR, 'timecode');
-  oven(68);
-  tc(69, OVEN);
+  // ——— Экран 4 (64–79): ряд тумб с духовкой ———
+  kitchenRow(65); // 65–68, 69–72, 73–76
+  stack(67, COUNTER, 'timecode');
   tc(70, OVEN);
+  tc(71, OVEN);
   enemy('asterisk', 72, 2);
 
   // ——— Экран 5 (80–95): бариста, кофе перед раковиной ———
   pair(81, FLOOR, null, 'coffee');
-  m.prop(K.shelf(4, 'pots'), 88, SHELF_LOW + 1);
+  shelf(88, 4, 'pots', SHELF_LOW);
   tc(89, SHELF_LOW);
   enemy('barista', 85, FLOOR);
   tc(92, FLOOR);
@@ -76,9 +80,9 @@ export function buildLevel1Sink() {
   // ——— Экран 6 (96–111): раковина с вентилем ———
   // Вентиль — на дне раковины, кораблик всплывает рядом: открыл воду — сразу прыгай на него.
   // Вода поднимается до y = 96, с кораблика — на уступ с выходом справа. Без воды уступ не достать.
-  m.paint((p) => K.faucet(p, 101 * TILE, 3 * TILE));
+  m.decor((p) => K.faucet(p, 101 * TILE, 3 * TILE));
   m.prop(K.sinkBasin(9, 3), 99, 15); // бортики — колонки 99 и 107, дно — строка 14 (y = 224)
-  m.paint((p) => K.valve(p, 100 * TILE, 14 * TILE));
+  m.decor((p) => K.valve(p, 100 * TILE, 14 * TILE));
   m.zone('trigger', 100 * TILE, 12 * TILE, TILE, 2 * TILE);
   m.zone('flood', 100 * TILE, 6 * TILE, 7 * TILE, 8 * TILE);
   m.pointPx('floater', 103 * TILE + 8, 14 * TILE);
@@ -88,9 +92,8 @@ export function buildLevel1Sink() {
     p.rect(108 * TILE, 12 * TILE, 3 * TILE, 3 * TILE, 0x7c7c7c);
     p.rect(107 * TILE, 7 * TILE, 4 * TILE, TILE, 0x7c7c7c);
     p.hline(107 * TILE, 7 * TILE, 4 * TILE, 0xfcfcfc);
-    K.exitDoor(p, 109 * TILE, 7 * TILE);
   });
-  m.zone('exit', 108 * TILE, 4 * TILE, 3 * TILE, 3 * TILE);
+  K.placeExitDoor(m, 109, 7);
   for (const r of [9, 11]) {
     tc(101, r);
     tc(105, r);

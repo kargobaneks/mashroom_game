@@ -48,7 +48,7 @@ export function buildLevel1Hall() {
   const table = (col, w = 7) => m.prop(A.table(w), col, TOP + 1);
   const onTable = (prop, col) => m.prop(prop, col, TOP);
   const sill = (from, to) => {
-    m.paint((p) => {
+    m.decor((p) => {
       for (let x = from * TILE; x < (to + 1) * TILE; x += 8 * TILE) {
         A.hallWindow(p, x + 6, Math.min(8 * TILE, (to + 1) * TILE - x) - 12, SILL * TILE);
       }
@@ -73,9 +73,10 @@ export function buildLevel1Hall() {
   m.point('spawn', 2, SEAT);
   m.point('respawn', 2, SEAT);
   table(5);
-  onTable(A.latteCup, 6); // ступенька на подоконник
-  onTable(A.sugar, 10);
-  pair(8, TOP, 'timecode', 'timecode');
+  // Ящики — у самого края, куда игрок приходит со стула: сразу упереться и взять.
+  pair(6, TOP, 'timecode', 'timecode');
+  onTable(A.latteCup, 9); // ступенька на подоконник
+  onTable(A.sugar, 11);
   chair(13, 'right');
   tc(12, 10);
   tc(12, SILL);
@@ -111,7 +112,7 @@ export function buildLevel1Hall() {
   chair(49, 'right');
   enemy('barista', 51, SEAT);
   table(54);
-  stack(60, TOP);
+  stack(57, TOP); // в середине стола: с обеих сторон можно встать
   onTable(A.avocadoToast, 55);
   onTable(A.sugar, 59); // ступенька на второй подоконник
   tc(48, 10);
@@ -172,9 +173,8 @@ export function buildLevel1Hall() {
   enemy('barista', 119, SEAT);
   enemy('asterisk', 114, 2);
   m.point('pickup', 120, SILL, { kind: 'star' }); // награда верхнего пути
-  m.paint((p) => K.exitDoor(p, 123 * TILE, SEAT * TILE));
-  // Выход — от дверного проёма до стены, по всей высоте от подоконника: с верхнего пути не перелететь.
-  m.zone('exit', 123 * TILE, SILL * TILE, 4 * TILE, (SEAT - SILL) * TILE);
+  // Дверь вплотную к стене: с подоконника её не перелететь — дальше стена.
+  K.placeExitDoor(m, 125, SEAT);
 
   m.segment('right', 0, 0, 128 * TILE, 15 * TILE);
   return m;

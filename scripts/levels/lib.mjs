@@ -22,9 +22,32 @@ export class MapBuilder {
     this.art = new Pix(cols * TILE, rows * TILE);
   }
 
-  /** Рисовать на холсте арта: fn(pix). */
+  /** Рисовать фон прямо на холсте арта: fn(pix). Без контура — фон должен быть тихим. */
   paint(fn) {
     fn(this.art);
+  }
+
+  /**
+   * Нарисовать предмет переднего плана с чёрным контуром: fn(pix) рисует на отдельном слое
+   * размером с карту, слой обводится и кладётся поверх фона. x0, x1 — горизонтальные границы
+   * рисунка в px (чтобы не обводить всю карту).
+   */
+  decor(fn, x0 = 0, x1 = this.art.w) {
+    const left = Math.max(0, Math.floor(x0) - 2);
+    const right = Math.min(this.art.w, Math.ceil(x1) + 2);
+    const layer = new Pix(right - left, this.art.h);
+    const shifted = new Proxy(layer, {
+      get(target, prop) {
+        const v = target[prop];
+        if (typeof v !== 'function') return v;
+        // Методы рисования получают координаты карты — сдвигаем x на левую границу слоя.
+        if (prop === 'set') return (x, y, c) => target.set(x - left, y, c);
+        return v.bind(shifted);
+      },
+    });
+    fn(shifted);
+    layer.outline();
+    layer.blitOnto(this.art, left, 0);
   }
 
   /**
@@ -33,7 +56,12 @@ export class MapBuilder {
    */
   prop(def, col, floorRow) {
     const top = floorRow - def.h;
-    def.draw(this.art, col * TILE, top * TILE);
+    const pad = 48; // ручки, пар, маркизы и т. п. выходят за габарит предмета
+    this.decor(
+      (p) => def.draw(p, col * TILE, top * TILE),
+      col * TILE - pad,
+      (col + def.w) * TILE + pad,
+    );
     def.collide(this, col, top);
     return top;
   }

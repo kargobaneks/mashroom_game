@@ -4,9 +4,11 @@ export const MECHANISMS = {
   lift: { width: 24, height: 8, stepPx: 16, maxSteps: 3, speed: 1 },
   /** Вода в раковине. */
   flood: {
+    /** Пауза между вентилем и водой (журчание): успеть встать на молочник. */
+    delayFrames: 60,
     riseSpeed: 0.5,
     /** На сколько px тело должно уйти под воду, чтобы утонуть. */
-    drownDepth: 10,
+    drownDepth: 14,
   },
   /** Молочник-кораблик. */
   floater: {

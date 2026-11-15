@@ -6,23 +6,23 @@ const T = 16;
 
 // ——— Фоны ———
 
-/** Кафель кухни: белый с бирюзовыми швами; пол — шахматка от floorY и ниже. */
+/** Кафель кухни: тёплый, малоконтрастный (фон не спорит с предметами); пол — шахматка. */
 export function tiles(pix, x0, y0, w, h, floorY = Infinity) {
   pix.fillPattern(x0, y0, w, h, (x, y) => {
     if (y >= floorY)
-      return (Math.floor(x / 8) + Math.floor((y - floorY) / 8)) % 2 ? C.white : C.gray;
-    if (x % 16 === 0 || y % 16 === 0) return C.aqua;
-    return (x * 13 + y * 7) % 97 === 0 ? C.paleSky : C.white;
+      return (Math.floor(x / 8) + Math.floor((y - floorY) / 8)) % 2 ? C.cream : C.tan;
+    if (x % 16 === 0 || y % 16 === 0) return C.skinPale;
+    return C.cream;
   });
 }
 
-/** Тёмный кафель мойки и полоса фартука. */
+/** Кафель мойки: холодный, малоконтрастный; полоса фартука; пол — шахматка. */
 export function sinkTiles(pix, x0, y0, w, h, floorY = Infinity) {
   pix.fillPattern(x0, y0, w, h, (x, y) => {
     if (y >= floorY)
       return (Math.floor(x / 8) + Math.floor((y - floorY) / 8)) % 2 ? C.silver : C.gray;
-    if (y > floorY - 56 && y < floorY - 48) return C.teal;
-    if (x % 16 === 0 || y % 16 === 0) return C.teal;
+    if (y > floorY - 56 && y < floorY - 48) return C.lavender;
+    if (x % 16 === 0 || y % 16 === 0) return C.lavender;
     return C.paleSky;
   });
 }
@@ -30,7 +30,7 @@ export function sinkTiles(pix, x0, y0, w, h, floorY = Infinity) {
 /** Сплошной пол (рисуется отдельно поверх фона, если нужно другое покрытие). */
 export function floorStrip(pix, x, y, w, h) {
   pix.fillPattern(x, y, w, h, (px, py) =>
-    (Math.floor(px / 8) + Math.floor((py - y) / 8)) % 2 ? C.white : C.gray,
+    (Math.floor(px / 8) + Math.floor((py - y) / 8)) % 2 ? C.cream : C.tan,
   );
   pix.hline(x, y, w, C.black);
 }
@@ -105,24 +105,49 @@ export const bigPot = {
   },
 };
 
-/** Плита: корпус твёрдый, конфорки раскалены — опасная поверхность. */
+/** Кухонная тумба со столешницей во всю высоту от пола: твёрдая, верх — рабочая поверхность. */
+export function counter(wTiles, hTiles = 2) {
+  return {
+    w: wTiles,
+    h: hTiles,
+    draw(pix, x, y) {
+      const w = wTiles * T;
+      const h = hTiles * T;
+      pix.rect(x, y, w, h, C.white);
+      pix.rect(x, y, w, 4, C.gray);
+      pix.hline(x, y, w, C.silver);
+      for (let dx = 2; dx < w - 2; dx += 16) {
+        pix.box(x + dx, y + 6, 14, h - 8, C.white, C.silver);
+        pix.rect(x + dx + 6, y + 9, 3, 2, C.gray);
+      }
+      pix.hline(x, y + h - 1, w, C.gray);
+    },
+    collide(m, col, top) {
+      m.solid(col, col + wTiles - 1, top, top + hTiles - 1);
+    },
+  };
+}
+
+/** Плита в ряду тумб (той же высоты): конфорки раскалены — опасная поверхность, на плите кастрюля. */
 export const stove = {
   w: 3,
-  h: 3,
+  h: 2,
   draw(pix, x, y) {
     const w = 3 * T;
-    pix.box(x, y + T, w, 2 * T, C.white, C.black);
-    pix.box(x + 6, y + T + 8, w - 12, 2 * T - 14, C.gray, C.black);
-    pix.rect(x, y + T - 2, w, 3, C.black);
+    pix.box(x, y + 4, w, 2 * T - 4, C.white, C.black);
+    pix.box(x + 6, y + 12, w - 12, 2 * T - 16, C.gray, C.black);
+    pix.rect(x, y, w, 5, C.black);
     for (const cx of [x + 12, x + 36]) {
-      pix.ellipse(cx, y + T - 3, 8, 2, C.red);
-      pix.ellipse(cx, y + T - 3, 5, 1, C.gold);
+      pix.ellipse(cx, y + 2, 8, 2, C.red);
+      pix.ellipse(cx, y + 2, 5, 1, C.gold);
     }
-    for (let k = 0; k < 4; k++) pix.set(x + 8 + k * 9, y + 4 - (k % 2) * 3, C.salmon);
+    // Кастрюля с паром на дальней конфорке.
+    pix.box(x + 28, y - 10, 16, 10, C.silver, C.black);
+    for (let k = 0; k < 3; k++) pix.set(x + 31 + k * 5, y - 14 - (k % 2) * 3, C.white);
   },
   collide(m, col, top) {
     m.hazard(col, col + 2, top);
-    m.solid(col, col + 2, top + 1, top + 2);
+    m.solid(col, col + 2, top + 1, top + 1);
   },
 };
 
@@ -252,7 +277,17 @@ export function valve(pix, x, floorY) {
   pix.hline(x + 1, floorY - 26, 15, C.darkRed);
 }
 
-/** Служебная дверь — выход из части (декор; зона exit ставится отдельно). */
+/**
+ * Выход из части: служебная дверь (2 тайла, вплотную к стене справа) и зона exit — проём двери
+ * (без 4 px по краям). Переход — когда центр игрока внутри проёма, то есть игрок вошёл в дверь.
+ */
+export function placeExitDoor(m, col, floorRow) {
+  const T2 = 16;
+  m.decor((p) => exitDoor(p, col * T2, floorRow * T2));
+  m.zone('exit', col * T2 + 4, floorRow * T2 - 48, 24, 48);
+}
+
+/** Служебная дверь (рисунок). */
 export function exitDoor(pix, x, floorY) {
   pix.box(x, floorY - 64, 32, 64, C.olive, C.darkOlive);
   pix.rect(x + 4, floorY - 58, 24, 20, C.paleSky);

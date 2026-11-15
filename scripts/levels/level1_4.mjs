@@ -32,7 +32,7 @@ export function buildLevel1Basement() {
   m.solid(0, 9, 15, 15); // потолок, справа — проём шахты
   m.solid(0, 0, 15, 29);
   m.solid(1, 14, 28, 29);
-  m.paint((p) => A.roaster(p, 4 * TILE + 8, 28 * TILE));
+  m.decor((p) => A.roaster(p, 4 * TILE + 8, 28 * TILE));
   m.prop(A.arenaShelf(4), 1, 27);
   m.prop(A.arenaShelf(4), 11, 27);
   // Пена — у пола; ступеньки поверх неё, чтобы их было видно.

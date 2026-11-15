@@ -108,6 +108,8 @@ export class Flood implements Rect {
   /** Уровень воды (верх поверхности). */
   level: number;
   active = false;
+  /** Кадров до начала подъёма после вентиля. */
+  delay: number = MECHANISMS.flood.delayFrames;
 
   constructor(readonly zone: Zone) {
     this.x = zone.x;
@@ -130,6 +132,10 @@ export class Flood implements Rect {
   /** Насколько поднялась вода за шаг (для кораблика). */
   rise(): number {
     if (!this.active || this.full) return 0;
+    if (this.delay > 0) {
+      this.delay--;
+      return 0;
+    }
     const dy = Math.min(MECHANISMS.flood.riseSpeed, this.level - this.zone.y);
     this.level -= dy;
     return dy;
@@ -147,7 +153,8 @@ export class Floater extends MovingPlatform {
   y: number;
   readonly w = MECHANISMS.floater.width;
   readonly h = MECHANISMS.floater.height;
-  shown = false;
+  /** Молочник виден и твёрд с самого начала: лежит на дне раковины, вода его поднимет. */
+  shown = true;
 
   constructor(
     cx: number,

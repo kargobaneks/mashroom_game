@@ -163,3 +163,44 @@ describe('level 1-1 hall design rules (from the original hall)', () => {
     for (const s of hall.spawns) expect(s.y % T, `${s.type} @${s.x},${s.y}`).toBe(0);
   });
 });
+
+describe('level 1: every box can actually be picked up', () => {
+  // Ящик берут, уперевшись сбоку: рядом на той же поверхности должно быть место, где игрок встанет.
+  // Верхний ящик стопки снимают, взяв нижний, — проверяем нижний.
+  for (const { i, level } of parts) {
+    it(`part 1-${i + 1}: each box has a free side to push against`, () => {
+      const g = level.grid;
+      const T = g.size;
+      const boxes = level.spawns.filter((s) => s.type === 'item');
+      const boxAt = (tx: number, ty: number) =>
+        boxes.some((b) => Math.floor(b.x / T) === tx && b.y / T - 1 === ty);
+      const blocked = (tx: number, ty: number) => g.isSolid(tx, ty) || boxAt(tx, ty);
+      const standable = (tx: number, row: number) =>
+        !blocked(tx, row) &&
+        !blocked(tx, row - 1) &&
+        (g.isSolid(tx, row + 1) || g.isOneway(tx, row + 1));
+      // Ящик доступен, если рядом есть где встать — или рядом доступный ящик того же ряда
+      // (взял соседа — освободил место).
+      const cells = boxes
+        .map((b) => ({ tx: Math.floor(b.x / T), row: b.y / T - 1 }))
+        .filter((c) => !boxAt(c.tx, c.row + 1)); // верхний в стопке снимают вместе с нижним
+      const ok = new Set<string>();
+      const key = (c: { tx: number; row: number }) => `${c.tx},${c.row}`;
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const c of cells) {
+          if (ok.has(key(c))) continue;
+          const side = (dx: number) =>
+            standable(c.tx + dx, c.row) || ok.has(`${c.tx + dx},${c.row}`);
+          if (side(-1) || side(1)) {
+            ok.add(key(c));
+            changed = true;
+          }
+        }
+      }
+      expect(cells.filter((c) => !ok.has(key(c))).map((c) => `col ${c.tx} row ${c.row}`)).toEqual(
+        [],
+      );
+    });
+  }
+});

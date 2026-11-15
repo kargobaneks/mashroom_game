@@ -13,10 +13,8 @@ import { MapBuilder, TILE } from './lib.mjs';
 
 export function buildLevel1Kitchen() {
   const m = new MapBuilder(144, 30);
-  const { stack, pair, enemy, tc } = placers(m);
+  const { pair, enemy, tc } = placers(m);
   const FLOOR = 27; // пол низа, y = 432 (192 внутри экрана)
-  const LOW = 25; // низкая полка / верх стопки тарелок
-  const HIGH = 23; // высокая полка
   const TOP_FLOOR = 9; // пол верха, y = 144
 
   // ——— Фоны ———
@@ -30,65 +28,86 @@ export function buildLevel1Kitchen() {
   m.solid(109, 143, TOP_FLOOR, 14);
   m.solid(143, 143, 0, 8);
 
-  // ——— Экран 0 (0–15) ———
+  // ——— Экраны 0–5: ряд тумб и плит вдоль стены ———
+  // Ярусы как в зале: пол в проходах между тумбами (бариста-боты), столешницы на тумбах
+  // (y = 400, на 32 выше пола), полки над столешницами (y = 368). Всё стоит где ему место:
+  // тарелки и кастрюли — на столешницах, банки и посуда — на полках, кастрюля — на плите.
+  const TOP = FLOOR - 2; // верх столешницы
+  const SHELF = TOP - 2; // полка над столешницей
+  const counter = (col, w) => m.prop(K.counter(w), col, FLOOR);
+  const stove = (col) => {
+    m.decor((p) => K.hood(p, col * TILE, (SHELF - 4) * TILE));
+    m.prop(K.stove, col, FLOOR);
+  };
+  const shelf = (col, w, load) => m.prop(K.shelf(w, load), col, SHELF + 1);
+
+  // Экран 0 (0–15): холодильник у входа, первая тумба. Первые ящики — с таймкодами.
   m.point('spawn', 2, FLOOR);
   m.point('respawn', 2, FLOOR);
-  m.paint((p) => K.fridge(p, 4 * TILE, FLOOR * TILE));
-  pair(8, FLOOR, 'timecode', 'timecode');
-  m.prop(K.plateStack(2), 10, FLOOR);
-  m.prop(K.shelf(4, 'plates'), 11, LOW + 1);
-  tc(12, LOW);
-  tc(13, LOW);
-  enemy('barista', 15, FLOOR);
+  m.decor((p) => K.fridge(p, 0, FLOOR * TILE));
+  counter(5, 8); // 5–12
+  pair(6, TOP, 'timecode', 'timecode');
+  m.prop(K.plateStack(1), 11, TOP); // стопка тарелок на столешнице — ступенька к полке
+  shelf(9, 5, 'jars'); // 9–13
+  tc(10, SHELF);
+  tc(11, SHELF - 1);
+  enemy('barista', 14, FLOOR); // проход 13–15
 
-  // ——— Экран 1 (16–31): плита, высокая полка ———
-  m.paint((p) => K.hood(p, 18 * TILE, 18 * TILE));
-  m.prop(K.stove, 18, FLOOR);
-  m.prop(K.plateStack(2), 22, FLOOR);
-  m.prop(K.shelf(5, 'pots'), 23, HIGH + 1);
-  pair(24, HIGH, null, 'timecode');
-  enemy('asterisk', 27, 18);
-  tc(18, 22);
-  tc(19, 21);
-  tc(20, 22);
+  // Экран 1 (16–31): плита, тумба с кастрюлей, полка с посудой.
+  stove(16); // 16–18
+  counter(19, 8); // 19–26
+  shelf(20, 5, 'pots'); // 20–24
+  pair(21, SHELF, null, 'timecode');
+  m.prop(K.bigPot, 25, TOP);
+  enemy('asterisk', 23, 19);
+  tc(17, TOP - 2);
+  tc(28, TOP);
+  tc(29, TOP + 1); // дуга над проходом 27–29
 
-  // ——— Экран 2 (32–47): кастрюля, полка с банками, кофе ———
-  m.prop(K.bigPot, 34, FLOOR);
-  m.prop(K.shelf(5, 'jars'), 38, HIGH + 1);
-  tc(39, HIGH);
-  tc(40, HIGH);
-  pair(40, FLOOR, 'coffee', null);
-  enemy('barista', 44, FLOOR);
+  // Экран 2 (32–47): тумба с ботом, плита, тумба с полкой.
+  counter(30, 8); // 30–37
+  pair(31, TOP, null, 'coffee');
+  enemy('bot', 34, TOP);
+  stove(38); // 38–40
+  counter(41, 8); // 41–48
+  shelf(42, 5, 'jars');
+  pair(43, SHELF, 'timecode', null);
+  enemy('asterisk', 46, 19);
+  tc(39, TOP - 2);
 
-  // ——— Экран 3 (48–63) ———
-  m.prop(K.plateStack(2), 50, FLOOR);
-  m.prop(K.shelf(4, 'plates'), 52, HIGH + 1);
-  pair(53, HIGH);
-  stack(60, FLOOR, 'timecode');
-  enemy('asterisk', 58, 18);
-  tc(51, 22);
+  // Экран 3 (48–63): проход с баристой, тумба с кастрюлей, плита.
+  enemy('barista', 50, FLOOR); // проход 49–51
+  tc(50, TOP);
+  counter(52, 8); // 52–59
+  pair(53, TOP);
+  m.prop(K.bigPot, 57, TOP);
+  tc(57, TOP - 3);
+  stove(60); // 60–62
 
-  // ——— Экран 4 (64–79): вторая плита, бот на полке ———
-  pair(64, FLOOR);
-  m.paint((p) => K.hood(p, 66 * TILE, 18 * TILE));
-  m.prop(K.stove, 66, FLOOR);
-  m.prop(K.plateStack(2), 71, FLOOR);
-  m.prop(K.shelf(5, 'pots'), 73, HIGH + 1);
-  enemy('bot', 75, HIGH);
-  tc(67, 22);
-  tc(68, 21);
-  tc(69, 22);
+  // Экран 4 (64–79): тумба с ботом и полкой, проход.
+  counter(63, 8); // 63–70
+  pair(64, TOP, null, 'timecode');
+  enemy('bot', 68, TOP);
+  shelf(66, 5, 'pots');
+  tc(67, SHELF);
+  tc(68, SHELF);
+  enemy('asterisk', 77, 19);
+  tc(72, TOP);
+  tc(73, TOP + 1); // дуга над проходом 71–73
 
-  // ——— Экран 5 (80–95): кофе перед подъёмом ———
-  pair(82, FLOOR, null, 'coffee');
-  m.prop(K.shelf(4, 'jars'), 85, LOW + 1);
-  tc(86, LOW);
-  tc(87, LOW);
-  enemy('barista', 90, FLOOR);
-  enemy('asterisk', 92, 19);
+  // Экран 5 (80–95): тумба, проход с баристой, последняя тумба перед подъёмом.
+  counter(74, 8); // 74–81
+  pair(75, TOP, 'coffee', null);
+  m.prop(K.plateStack(1), 80, TOP);
+  enemy('barista', 83, FLOOR); // проход 82–84
+  counter(85, 8); // 85–92
+  shelf(86, 5, 'jars');
+  pair(87, SHELF);
+  tc(89, SHELF);
+  tc(90, SHELF);
 
   // ——— Экран 6 (96–111): подъём — полки зигзагом ———
-  m.paint((p) => {
+  m.decor((p) => {
     K.tallCabinet(p, 96 * TILE - 8, 2 * TILE, 12, 25 * TILE);
     K.tallCabinet(p, 112 * TILE - 4, 10 * TILE, 8, 17 * TILE);
   });
@@ -132,8 +151,7 @@ export function buildLevel1Kitchen() {
   enemy('asterisk', 124, 1);
   pair(132, TOP_FLOOR, 'timecode', null);
   enemy('barista', 136, TOP_FLOOR);
-  m.paint((p) => K.exitDoor(p, 140 * TILE, TOP_FLOOR * TILE));
-  m.zone('exit', 141 * TILE, (TOP_FLOOR - 3) * TILE, TILE, 3 * TILE);
+  K.placeExitDoor(m, 141, TOP_FLOOR);
 
   // ——— Камера ———
   m.segment('right', 0, 15 * TILE, 112 * TILE, 15 * TILE);

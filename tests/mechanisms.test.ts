@@ -45,10 +45,14 @@ describe('sink: valve, rising water, floating jug', () => {
     const p = w.players[0]!;
     const flood = w.mech.floods[0]!;
     const jug = w.mech.floaters[0]!;
-    expect(jug.active).toBe(false);
+    // Молочник виден с самого начала — лежит на дне, видно, куда прыгать.
+    expect(jug.active).toBe(true);
+    const bottom = jug.y;
     run(w, 12, ['right']); // до вентиля, не заходя в раковину
     expect(flood.active).toBe(true);
-    expect(jug.active).toBe(true);
+    // Вода не сразу: пауза, чтобы успеть встать на молочник.
+    run(w, MECHANISMS.flood.delayFrames - 20);
+    expect(jug.y).toBe(bottom);
     // Посадить игрока на кораблик и дать воде подняться.
     p.placeAt(jug.x + jug.w / 2, jug.y);
     run(w, 400);
@@ -70,7 +74,7 @@ describe('sink: valve, rising water, floating jug', () => {
     expect(p.vitals.lives).toBe(BALANCE.startLives - 1);
   });
 
-  it('dying resets the sink: water drains, jug hides', () => {
+  it('dying resets the sink: water drains, the jug is back at the bottom', () => {
     const w = sink();
     const p = w.players[0]!;
     run(w, 12, ['right']); // до вентиля, не заходя в раковину
@@ -78,7 +82,8 @@ describe('sink: valve, rising water, floating jug', () => {
     p.kill(w);
     run(w, PLAYER_PHYSICS.deathFrames);
     expect(w.mech.floods[0]!.active).toBe(false);
-    expect(w.mech.floaters[0]!.active).toBe(false);
+    expect(w.mech.floods[0]!.h).toBe(0);
+    expect(w.mech.floaters[0]!.active).toBe(true);
   });
 });
 

@@ -19,6 +19,8 @@ import { BaseScene } from './BaseScene';
 
 /** Пауза после победы над боссом / конца игры перед следующим экраном, кадры. */
 const AFTER_EVENT_FRAMES = 60;
+/** Переход между частями уровня: затемнение и проявление, мс. */
+const PART_FADE_MS = 400;
 const OVERLAY_DEPTH = 3000;
 
 type Mode =
@@ -79,6 +81,7 @@ export class Level extends BaseScene<LevelSceneData> {
     const map = asset.map;
     this.world = new World(parseTiledLevel(map), setup, level * 10 + part, carry);
     if (warpToBoss) this.world.warpToBoss();
+    if (part > 0) this.cameras.main.fadeIn(PART_FADE_MS, 0, 0, 0);
     playMusic(this, `level${level}`);
     this.cameras.main.setBackgroundColor(PALETTE.black);
     this.view = new LevelView(this, this.world, map, asset.artTileset, {
@@ -179,11 +182,11 @@ export class Level extends BaseScene<LevelSceneData> {
         return;
       }
       case 'exit':
-        this.mode = {
-          kind: 'wait',
-          frames: AFTER_EVENT_FRAMES / 2,
-          then: () => this.nextPart(world),
-        };
+        // Игрок вошёл в дверь: экран гаснет, следующая часть проявляется из темноты.
+        playSfx(this, 'trigger');
+        this.mode = { kind: 'wait', frames: Number.POSITIVE_INFINITY, then: () => undefined };
+        this.cameras.main.fadeOut(PART_FADE_MS, 0, 0, 0);
+        this.cameras.main.once('camerafadeoutcomplete', () => this.nextPart(world));
         return;
       case 'gameOver':
         stopMusic(this);

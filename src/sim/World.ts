@@ -489,7 +489,6 @@ export class World implements BossWorld {
       if (tr.fired || !this.players.some((p) => p.active && overlaps(p, tr.zone))) continue;
       tr.fired = true;
       for (const f of this.mech.floods) f.active = true;
-      for (const fl of this.mech.floaters) fl.shown = true;
       this.emit({ type: 'sfx', name: 'trigger' });
     }
     for (const f of this.mech.floods) {
@@ -509,7 +508,9 @@ export class World implements BossWorld {
   private checkExit(): void {
     if (this.exited) return;
     const exits = this.level.zones.filter((z) => z.kind === 'exit');
-    if (exits.some((z) => this.players.some((p) => p.active && overlaps(p, z)))) {
+    // Вошёл в дверь — центр игрока внутри проёма, а не просто коснулся краем.
+    const inside = (p: Player, z: Rect) => contains(z, { x: p.x + p.w / 2, y: p.y + p.h - 1 });
+    if (exits.some((z) => this.players.some((p) => p.active && inside(p, z)))) {
       this.exited = true;
       this.frozen = true;
       this.emit({ type: 'exit' });
