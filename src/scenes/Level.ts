@@ -166,7 +166,8 @@ export class Level extends BaseScene<LevelSceneData> {
         };
         return;
       case 'bossPhase':
-        // Вторая фаза: подвал превращается в съёмочную площадку — цветной свет поверх арены.
+        // Вторая фаза Агранович: подвал превращается в съёмочную площадку — цветной свет.
+        if (world.boss?.name !== 'agranovich') return;
         this.view?.tintArea(
           world.camera.segment,
           LEVEL_BACKGROUNDS.filmSet,

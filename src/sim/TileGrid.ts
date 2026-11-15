@@ -15,7 +15,7 @@ export class TileGrid {
     private readonly hazard: Uint8Array,
   ) {}
 
-  /** Для тестов: '#' — solid, '=' — oneway, '^' — hazard, остальное — пусто. */
+  /** Для тестов: '#' — solid, '=' — oneway, '^' — горячая поверхность (oneway + hazard), остальное — пусто. */
   static fromAscii(lines: readonly string[], size = 16): TileGrid {
     const rows = lines.length;
     const cols = Math.max(...lines.map((l) => l.length));
@@ -28,7 +28,11 @@ export class TileGrid {
         const ch = line[tx];
         if (ch === '#') solid[i] = 1;
         else if (ch === '=') oneway[i] = 1;
-        else if (ch === '^') hazard[i] = 1;
+        else if (ch === '^') {
+          // Горячая поверхность: на неё встают сверху (как на плиту), она обжигает.
+          hazard[i] = 1;
+          oneway[i] = 1;
+        }
       }
     });
     return new TileGrid(cols, rows, size, solid, oneway, hazard);
@@ -66,6 +70,16 @@ export class TileGrid {
   /** Касается ли прямоугольник хоть одной solid-клетки. */
   rectHitsSolid(r: Rect): boolean {
     return this.anyTile(r, (tx, ty) => this.isSolid(tx, ty));
+  }
+
+  /** Стоит ли тело на опасной поверхности: под ногами (ряд, верх которого — уровень ног) hazard. */
+  standsOnHazard(r: Rect): boolean {
+    const eps = 0.001;
+    const ty = Math.floor((r.y + r.h + eps) / this.size);
+    const x0 = Math.floor(r.x / this.size);
+    const x1 = Math.floor((r.x + r.w - eps) / this.size);
+    for (let tx = x0; tx <= x1; tx++) if (this.isHazard(tx, ty)) return true;
+    return false;
   }
 
   rectTouchesHazard(r: Rect): boolean {

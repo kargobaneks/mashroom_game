@@ -9,6 +9,8 @@ import { uiText } from '../ui/text';
 const HUD_DEPTH = 1000;
 const MARGIN = 8;
 const BOSS_BAR = { width: 96, height: 4, y: 16 } as const;
+/** Шкала паники (арена Уралова): под «хронометражем». Мигает, пока управление инвертировано. */
+const PANIC_BAR = { width: 64, height: 3, y: 24, labelGap: 4, blinkFrames: 8 } as const;
 
 /**
  * HUD поверх игры, как в оригинале: внизу слева — инициал и сердечки игрока 1,
@@ -23,6 +25,9 @@ export class Hud {
   private readonly bossName: Phaser.GameObjects.BitmapText;
   private readonly bossBarBg: Phaser.GameObjects.Rectangle;
   private readonly bossBar: Phaser.GameObjects.Rectangle;
+  private readonly panicLabel: Phaser.GameObjects.BitmapText;
+  private readonly panicBg: Phaser.GameObjects.Rectangle;
+  private readonly panicBar: Phaser.GameObjects.Rectangle;
 
   constructor(
     scene: Phaser.Scene,
@@ -65,6 +70,20 @@ export class Hud {
     );
     this.bossBarBg.setVisible(false);
     this.bossBar.setVisible(false);
+    const px = (DISPLAY.width - PANIC_BAR.width) / 2;
+    this.panicLabel = fix(uiText(scene, px - PANIC_BAR.labelGap, PANIC_BAR.y - 2, t('hud.panic')))
+      .setOrigin(1, 0)
+      .setVisible(false);
+    this.panicBg = fix(
+      scene.add
+        .rectangle(px, PANIC_BAR.y, PANIC_BAR.width, PANIC_BAR.height, PALETTE.darkGray)
+        .setOrigin(0),
+    ).setVisible(false);
+    this.panicBar = fix(
+      scene.add
+        .rectangle(px, PANIC_BAR.y, PANIC_BAR.width, PANIC_BAR.height, PALETTE.red)
+        .setOrigin(0),
+    ).setVisible(false);
   }
 
   update(): void {
@@ -78,7 +97,7 @@ export class Hud {
       );
     }
     const boss = this.world.boss;
-    const on = boss !== null && boss.state !== 'intro';
+    const on = boss !== null && !boss.waiting;
     this.bossName.setVisible(on);
     this.bossBarBg.setVisible(on);
     this.bossBar.setVisible(on);
@@ -86,5 +105,12 @@ export class Hud {
       this.bossName.setText(t(`boss.${boss.name}.name`));
       this.bossBar.width = Math.round((BOSS_BAR.width * Math.max(0, boss.hp)) / boss.maxHp);
     }
+    const w = this.world;
+    const panicOn = on && boss.name === 'uralov' && !boss.defeated;
+    const blinkOff = w.controlsInverted && Math.floor(w.frame / PANIC_BAR.blinkFrames) % 2 === 1;
+    this.panicLabel.setVisible(panicOn);
+    this.panicBg.setVisible(panicOn);
+    this.panicBar.setVisible(panicOn && !blinkOff);
+    this.panicBar.width = Math.max(1, Math.round((PANIC_BAR.width * w.panic) / 100));
   }
 }

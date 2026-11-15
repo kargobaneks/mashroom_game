@@ -8,6 +8,8 @@ import { buildLevel1Hall } from './levels/level1_1.mjs';
 import { buildLevel1Kitchen } from './levels/level1_2.mjs';
 import { buildLevel1Sink } from './levels/level1_3.mjs';
 import { buildLevel1Basement } from './levels/level1_4.mjs';
+import { buildLevel2Server } from './levels/level2_1.mjs';
+import { buildLevel2Arena } from './levels/level2_2.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const levelsDir = join(root, 'src/data/levels');
@@ -24,6 +26,9 @@ const levels = {
   level1_2: buildLevel1Kitchen,
   level1_3: buildLevel1Sink,
   level1_4: buildLevel1Basement,
+  // Уровень 2 — серверная (вправо, спуск, вправо) и машинный зал с ареной.
+  level2_1: buildLevel2Server,
+  level2_2: buildLevel2Arena,
 };
 for (const [name, build] of Object.entries(levels)) {
   const artPath = join(tilesetsDir, `${name}.png`);

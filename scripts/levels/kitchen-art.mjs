@@ -82,7 +82,7 @@ export function plateStack(hTiles = 2) {
       }
     },
     collide(m, col, top) {
-      m.solid(col, col, top, top + hTiles - 1);
+      m.oneway(col, col, top);
     },
   };
 }
@@ -101,7 +101,7 @@ export const bigPot = {
     for (let k = 0; k < 3; k++) pix.set(x + 9 + k * 7, y - 3 - (k % 2) * 2, C.white);
   },
   collide(m, col, top) {
-    m.solid(col, col + 1, top, top + 1);
+    m.oneway(col, col + 1, top);
   },
 };
 
@@ -123,7 +123,7 @@ export function counter(wTiles, hTiles = 2) {
       pix.hline(x, y + h - 1, w, C.gray);
     },
     collide(m, col, top) {
-      m.solid(col, col + wTiles - 1, top, top + hTiles - 1);
+      m.oneway(col, col + wTiles - 1, top);
     },
   };
 }
@@ -147,7 +147,7 @@ export const stove = {
   },
   collide(m, col, top) {
     m.hazard(col, col + 2, top);
-    m.solid(col, col + 2, top + 1, top + 1);
+    m.oneway(col, col + 2, top);
   },
 };
 
@@ -210,7 +210,7 @@ export function syrupBottle(hTiles, color = C.darkRed) {
       pix.vline(x + 6, by + 2, bh - 4, C.white);
     },
     collide(m, col, top) {
-      m.solid(col, col + 1, top, top + hTiles - 1);
+      m.oneway(col, col + 1, top);
     },
   };
 }
@@ -235,7 +235,7 @@ export const oven = {
     pix.rect(x + 10, y + 13, w - 20, 2, C.salmon);
   },
   collide(m, col, top) {
-    m.solid(col, col + 3, top, top + 2);
+    m.oneway(col, col + 3, top);
   },
 };
 

@@ -1,8 +1,10 @@
-import { AGRANOVICH, BALANCE, BOSS_RULES } from '../config/balance';
+import { AGRANOVICH, BALANCE, BOSS_RULES, URALOV } from '../config/balance';
 import { ENEMIES } from '../config/enemies';
 import type { HeroId } from '../systems/Flow';
 import type { PlayerId } from '../systems/InputState';
-import { Agranovich, type BossWorld } from './bosses/Agranovich';
+import { Agranovich } from './bosses/Agranovich';
+import type { BossWorld } from './bosses/Boss';
+import { Uralov } from './bosses/Uralov';
 import { Camera } from './Camera';
 import { createEnemy, isEnemyKind, type Enemy } from './enemies';
 import { contains, overlaps, type Point, type Rect } from './geom';
@@ -47,7 +49,7 @@ const ZONE_GRAVITY: Readonly<Record<string, number>> = {
 /** Расстояние между игроками на старте, px. */
 const COOP_START_OFFSET = 16;
 
-export type Boss = Agranovich;
+export type Boss = Agranovich | Uralov;
 
 /**
  * Мир уровня: вся игровая логика без Phaser. Шаг — 1/60 с. Сцена передаёт ввод,
@@ -73,6 +75,10 @@ export class World implements BossWorld {
   private ammoTimer = 0;
   private ammoDrops = 0;
   private exited = false;
+  /** Шкала паники (арена Уралова), 0–100. */
+  panic = 0;
+  /** Сколько ещё кадров управление инвертировано (паника дошла до 100%). */
+  panicFrames = 0;
   mech: Mechanisms;
   /** Ящики, содержимое которых уже открыли (не прячем его снова при сбросе сегмента). */
   private readonly revealedSpawns = new Set<number>();
@@ -140,6 +146,7 @@ export class World implements BossWorld {
   step(inputs: Readonly<Partial<Record<PlayerId, InputView>>>): void {
     if (this.frozen || this.gameOver) return;
     this.frame++;
+    if (this.panicFrames > 0 && --this.panicFrames === 0) this.panic = 0;
 
     const entered = this.camera.update(this.cameraBodies());
     if (entered) this.onSegmentEntered(entered);
@@ -177,11 +184,10 @@ export class World implements BossWorld {
   // ——— сегменты, появление, сброс ———
 
   private onSegmentEntered(seg: Segment): void {
-    if (seg.boss === 'agranovich' && !this.boss) {
-      const points = this.level.spawns
-        .filter((s) => s.type === 'bossPoint' && contains(seg, s))
-        .map((s) => ({ x: s.x, y: s.y }));
-      this.boss = new Agranovich(points);
+    if (seg.boss && !this.boss) {
+      const boss = this.createBoss(seg);
+      if (!boss) return;
+      this.boss = boss;
       this.enemies = [];
       this.projectiles = [];
       this.frozen = true;
@@ -189,10 +195,57 @@ export class World implements BossWorld {
     }
   }
 
+  private createBoss(seg: Segment): Boss | null {
+    if (seg.boss === 'agranovich') {
+      const points = this.level.spawns
+        .filter((s) => s.type === 'bossPoint' && contains(seg, s))
+        .map((s) => ({ x: s.x, y: s.y }));
+      return new Agranovich(points);
+    }
+    if (seg.boss === 'uralov') return new Uralov(seg, this.floorBelow(seg));
+    return null;
+  }
+
+  /** Пол арены: первая твёрдая строка под центром сегмента. */
+  private floorBelow(seg: Segment): number {
+    const T = this.grid.size;
+    const tx = Math.floor((seg.x + seg.w / 2) / T);
+    for (let ty = Math.floor((seg.y + seg.h / 2) / T); ty < this.grid.rows; ty++)
+      if (this.grid.isSolid(tx, ty)) return ty * T;
+    return seg.y + seg.h;
+  }
+
   /** Конец реплики (вход в арену): бой начинается. */
   resume(): void {
     this.frozen = false;
-    if (this.boss?.state === 'intro') this.boss.begin(this);
+    if (this.boss?.waiting) this.boss.begin(this);
+  }
+
+  // ——— паника и ветер (арена Уралова) ———
+
+  /** Управление инвертировано: паника дошла до 100%. */
+  get controlsInverted(): boolean {
+    return this.panicFrames > 0;
+  }
+
+  private addPanic(amount: number): void {
+    if (this.panicFrames > 0) return;
+    this.panic = Math.min(URALOV.panic.max, this.panic + amount);
+    if (this.panic >= URALOV.panic.max) {
+      this.panicFrames = URALOV.panic.invertFrames;
+      this.emit({ type: 'sfx', name: 'hurt' });
+    }
+  }
+
+  /** Попадание по боссу снимает часть паники. */
+  private onBossHit(): void {
+    if (this.boss?.name === 'uralov' && this.panicFrames === 0)
+      this.panic = Math.max(0, this.panic - URALOV.panic.perHit);
+  }
+
+  /** Ветер для тела, px/кадр по горизонтали. */
+  windFor(body: Rect): number {
+    return this.boss ? this.boss.windFor(body) : 0;
   }
 
   private spawnEnemies(): void {
@@ -364,6 +417,7 @@ export class World implements BossWorld {
       const boss = this.boss;
       if (boss && boss.harmful && overlaps(it, boss)) {
         if (boss.hit(this)) {
+          this.onBossHit();
           it.impact();
         } else {
           // Босс неуязвим (летит или только что получил удар): предмет отскакивает со звоном.
@@ -417,6 +471,14 @@ export class World implements BossWorld {
           pr.alive = false;
           break;
         }
+        if (pr.effect === 'panic') {
+          if (p.state === 'held' || p.invulnerable) continue;
+          // Заголовок не ранит — накачивает шкалу паники.
+          this.addPanic(URALOV.panic.perHeadline);
+          this.emit({ type: 'sfx', name: 'deflect' });
+          pr.alive = false;
+          break;
+        }
         if (this.damagePlayer(p, pr.x + pr.w / 2)) {
           pr.alive = false;
           break;
@@ -429,15 +491,30 @@ export class World implements BossWorld {
     boss.update(this);
     // Арена помогает игроку: падающий сверху ящик тоже бьёт босса, если тот уязвим.
     for (const it of this.items) {
-      if (it.state === 'falling' && it.vy > 0 && overlaps(it, boss) && boss.hit(this)) it.impact();
+      if (it.state === 'falling' && it.vy > 0 && overlaps(it, boss) && boss.hit(this)) {
+        this.onBossHit();
+        it.impact();
+      }
+    }
+    // Кооп: брошенный напарник тоже бьёт босса (один раз за полёт) и отскакивает.
+    for (const p of this.players) {
+      if (!p.thrownFlight || p.thrownHit || !overlaps(p, boss) || !boss.harmful) continue;
+      p.thrownHit = true;
+      if (boss.hit(this)) this.onBossHit();
+      else this.emit({ type: 'sfx', name: 'deflect' });
+      p.vy = Math.max(p.vy, 1);
+      p.vx = -p.vx;
     }
     if (boss.defeated) {
       this.projectiles = [];
+      this.panic = 0;
+      this.panicFrames = 0;
       return;
     }
     if (boss.harmful) {
       for (const p of this.players)
-        if (p.active && overlaps(p, boss)) this.damagePlayer(p, boss.x + boss.w / 2);
+        if (p.active && !p.thrownFlight && overlaps(p, boss))
+          this.damagePlayer(p, boss.x + boss.w / 2);
     }
     // Боеприпасы не кончаются: нет предмета на арене — сверху падает коробка.
     const arena = this.camera.segment;

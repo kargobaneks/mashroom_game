@@ -2,12 +2,16 @@ import level1HallArt from '../../../assets/tilesets/level1_1.png';
 import level1KitchenArt from '../../../assets/tilesets/level1_2.png';
 import level1SinkArt from '../../../assets/tilesets/level1_3.png';
 import level1BasementArt from '../../../assets/tilesets/level1_4.png';
+import level2ServerArt from '../../../assets/tilesets/level2_1.png';
+import level2ArenaArt from '../../../assets/tilesets/level2_2.png';
 import type { LevelId } from '../../config/levels';
 import type { TiledMap } from '../../sim/level';
 import level1Hall from './level1_1.json';
 import level1Kitchen from './level1_2.json';
 import level1Sink from './level1_3.json';
 import level1Basement from './level1_4.json';
+import level2Server from './level2_1.json';
+import level2Arena from './level2_2.json';
 
 /** Часть уровня: карта Tiled и тайлсет её арта. */
 export interface LevelPart {
@@ -27,6 +31,10 @@ export const LEVELS: Partial<Record<LevelId, readonly LevelPart[]>> = {
     { map: level1Kitchen as TiledMap, artTileset: 'level1_2', artUrl: level1KitchenArt },
     { map: level1Sink as TiledMap, artTileset: 'level1_3', artUrl: level1SinkArt },
     { map: level1Basement as TiledMap, artTileset: 'level1_4', artUrl: level1BasementArt },
+  ],
+  2: [
+    { map: level2Server as TiledMap, artTileset: 'level2_1', artUrl: level2ServerArt },
+    { map: level2Arena as TiledMap, artTileset: 'level2_2', artUrl: level2ArenaArt },
   ],
 };
 

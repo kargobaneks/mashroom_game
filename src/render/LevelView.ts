@@ -3,7 +3,8 @@ import { HERO_SPRITE, heroPoseFor } from '../art/heroes';
 import { SPRITE_ANIM, spriteFrameName, type SpriteId } from '../art/sprites';
 import { PLAYER_PHYSICS } from '../config/physics';
 import type { Boss } from '../sim/World';
-import type { Enemy } from '../sim/enemies';
+import { Uralov } from '../sim/bosses/Uralov';
+import type { Enemy, EnemyKind } from '../sim/enemies';
 import type { Rect } from '../sim/geom';
 import type { TiledMap } from '../sim/level';
 import type { Player } from '../sim/Player';
@@ -55,6 +56,15 @@ function blink(timer: number): boolean {
 }
 
 /** Двухкадровая анимация по счётчику кадров. */
+/** Два кадра анимации каждого врага (первый — когда оглушён). */
+const ENEMY_FRAMES: Record<EnemyKind, readonly [string, string]> = {
+  bot: ['walk1', 'walk2'],
+  barista: ['roll1', 'roll2'],
+  asterisk: ['spin1', 'spin2'],
+  headline: ['fly1', 'fly2'],
+  cable: ['roll1', 'roll2'],
+};
+
 function alt(frame: number, per: number, a: string, b: string): string {
   return Math.floor(frame / per) % 2 === 0 ? a : b;
 }
@@ -272,18 +282,8 @@ export class LevelView {
   private enemyView(e: Enemy, f: number): SpriteView {
     const E = SPRITE_ANIM.enemyFramesPerPose;
     const frozen = e.stun > 0;
-    const frame =
-      e.kind === 'bot'
-        ? frozen
-          ? 'walk1'
-          : alt(f, E, 'walk1', 'walk2')
-        : e.kind === 'barista'
-          ? frozen
-            ? 'roll1'
-            : alt(f, E, 'roll1', 'roll2')
-          : frozen
-            ? 'spin1'
-            : alt(f, E, 'spin1', 'spin2');
+    const [a, b] = ENEMY_FRAMES[e.kind];
+    const frame = frozen ? a : alt(f, E, a, b);
     return {
       id: e.kind,
       frame,
@@ -296,20 +296,31 @@ export class LevelView {
   }
 
   private bossView(b: Boss, f: number): SpriteView {
-    const frame = b.defeated ? 'freed' : b.invuln > 0 ? 'hit' : b.telegraphing ? 'aim' : 'idle';
-    const bob =
-      b.state === 'fly' || b.state === 'intro'
-        ? Math.round(
-            Math.sin((f / SPRITE_ANIM.bossBobPeriod) * Math.PI * 2) * SPRITE_ANIM.bossBobAmplitude,
-          )
-        : 0;
+    const frame = b.defeated
+      ? 'freed'
+      : b.invuln > 0
+        ? 'hit'
+        : b instanceof Uralov
+          ? b.wingsDown
+            ? 'flap'
+            : 'idle'
+          : b.telegraphing
+            ? 'aim'
+            : 'idle';
+    const bob = b.flying
+      ? Math.round(
+          Math.sin((f / SPRITE_ANIM.bossBobPeriod) * Math.PI * 2) * SPRITE_ANIM.bossBobAmplitude,
+        )
+      : 0;
     const target = this.world.target(b);
+    // Уралов смотрит анфас — не отражаем (ухмылка и чуб остаются на своей стороне).
+    const flip = b instanceof Uralov ? false : target !== null && target.x < b.x + b.w / 2;
     return {
       id: b.name,
       frame,
       rect: b,
       depth: DEPTH.boss,
-      flip: target !== null && target.x < b.x + b.w / 2,
+      flip,
       visible: b.defeated || b.invuln === 0 || blink(b.invuln),
       flash: b.telegraphing && !blink(b.timer),
       offsetY: bob,

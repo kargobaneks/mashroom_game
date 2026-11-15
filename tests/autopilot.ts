@@ -49,10 +49,33 @@ export function autopilotKeys(w: World, p: Player, jumpHeld: boolean): Action[] 
     g.isSolid(Math.floor(ahead / T), feetRow) ||
     w.solidsFor(p).some((s) => ahead >= s.x && ahead < s.x + s.w && s.y < feet);
   const probe = Math.floor((ahead + 4) / T);
-  const hole = !surface(probe, Math.floor((feet + 1) / T));
-  const keys: Action[] = ['right'];
+  const groundRow = Math.floor((feet + 1) / T);
+  // Провал — если впереди нет опоры ни на уровне ног, ни на 1–3 тайла ниже (туда просто сходят).
+  let lowerLanding = false;
+  for (let dy = 1; dy <= 3 && !lowerLanding; dy++) {
+    for (let dx = 0; dx <= 2 && !lowerLanding; dx++)
+      lowerLanding = surface(probe + dx, groundRow + dy);
+  }
+  const hole = !surface(probe, groundRow) && !lowerLanding;
+  // В падении над опорой (стол, ящик, стопка) — перестать лететь вперёд и встать на неё.
+  if (!p.onGround && p.vy > 0) {
+    const tx = Math.floor(cx / T);
+    let below = false;
+    for (
+      let ty = Math.floor(feet / T);
+      ty < Math.floor((w.camera.y + w.camera.h) / T) && !below;
+      ty++
+    ) {
+      below = surface(tx, ty);
+    }
+    const onItem = w.solidsFor(p).some((sd) => cx >= sd.x && cx < sd.x + sd.w && sd.y >= feet);
+    if (below || onItem) return [];
+  }
   const wantJump = p.onGround ? wall || hole : p.vy < 0;
-  if (wantJump && (!p.onGround || !jumpHeld)) keys.push('jump');
+  // На земле с ещё зажатым прыжком новое нажатие не сработает: замереть на кадр и отпустить.
+  if (p.onGround && wantJump && jumpHeld) return [];
+  const keys: Action[] = ['right'];
+  if (wantJump) keys.push('jump');
   return keys;
 }
 

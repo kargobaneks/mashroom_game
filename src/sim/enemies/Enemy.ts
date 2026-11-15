@@ -2,7 +2,7 @@ import type { Facing, Point } from '../geom';
 import type { Body } from '../physics';
 import type { World } from '../World';
 
-export type EnemyKind = 'bot' | 'asterisk' | 'barista';
+export type EnemyKind = 'bot' | 'asterisk' | 'barista' | 'headline' | 'cable';
 
 let nextEnemyId = 1;
 

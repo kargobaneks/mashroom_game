@@ -67,6 +67,8 @@ export class Player implements Body {
   heldBy: Player | null = null;
   /** Летит, брошенный напарником: не управляется и не получает урона до приземления. */
   thrownFlight = false;
+  /** Брошенный напарник уже ударил босса в этом полёте. */
+  thrownHit = false;
   /** Прыжок начат кнопкой — его можно оборвать, отпустив кнопку. */
   jumping = false;
   crouching = false;
@@ -195,7 +197,9 @@ export class Player implements Body {
     this.setCrouch(wantCrouch, world);
 
     // Ходьба: мгновенная скорость, как на NES.
-    const dir = (input.down('right') ? 1 : 0) - (input.down('left') ? 1 : 0);
+    // Паника на 100% (арена Уралова): влево и вправо меняются местами.
+    const flip = world.controlsInverted ? -1 : 1;
+    const dir = ((input.down('right') ? 1 : 0) - (input.down('left') ? 1 : 0)) * flip;
     if (dir !== 0) this.facing = dir > 0 ? 1 : -1;
     const base = heavy ? P.walkSpeedHeavyItem : this.carrying ? P.walkSpeedLightItem : P.walkSpeed;
     const slow = 1 / (1 + this.slowStacks);
@@ -232,7 +236,7 @@ export class Player implements Body {
       if (this.carrying) this.throwCarried(this.throwDirection(input), world);
       else if (input.down('up')) world.registerDuet(this);
       else if (this.crouching) this.tryDropThrough(world);
-      else if (input.down(this.facing > 0 ? 'right' : 'left')) this.tryPickUp(world);
+      else if (input.down(this.facing * flip > 0 ? 'right' : 'left')) this.tryPickUp(world);
     }
 
     this.physics(world, true);
@@ -249,15 +253,20 @@ export class Player implements Body {
   private physics(world: World, clampToScreen: boolean): void {
     const g = P.gravity + world.extraGravityAt(this);
     this.vy = Math.min(this.vy + g, P.maxFallSpeed);
-    moveBody(this, world.grid, {
+    // Ветер от крыльев босса сдувает (и в прыжке, и с ящиком).
+    const wind = this.state === 'hidden' ? 0 : world.windFor(this);
+    this.vx += wind;
+    const res = moveBody(this, world.grid, {
       dropThrough: this.dropThroughTimer > 0,
       solids: world.solidsFor(this),
       platforms: world.platformsFor(this),
     });
+    if (!res.hitWall) this.vx -= wind;
     if (this.onGround) this.jumping = false;
     if (clampToScreen || this.state === 'hurt' || this.state === 'stunned')
       world.camera.clamp(this);
-    if (world.grid.rectTouchesHazard(this))
+    // Опасная поверхность (горячая плита) обжигает, только если на ней стоять.
+    if (this.onGround && world.grid.standsOnHazard(this))
       world.damagePlayer(this, this.x + this.w / 2 - this.facing);
   }
 
@@ -364,17 +373,19 @@ export class Player implements Body {
     this.carrying = null;
     this.throwTimer = P.throwFrames;
     if (c.kind === 'item') world.throwItem(c.item, this, dir);
-    else c.player.launchAsThrown(this.facing);
+    else c.player.launchAsThrown(this.facing, dir);
     world.emit({ type: 'sfx', name: 'throw' });
   }
 
   /** Напарник брошен: летит по дуге и приземляется на ноги. */
-  private launchAsThrown(facing: Facing): void {
+  private launchAsThrown(facing: Facing, dir: ThrowDir): void {
     this.heldBy = null;
     this.thrownFlight = true;
+    this.thrownHit = false;
     this.facing = facing;
-    this.vx = P.partnerThrowVx * facing;
-    this.vy = P.partnerThrowVy;
+    // ↑ + действие — напарник летит вверх (по боссу над головой), иначе — дугой вперёд.
+    this.vx = dir === 'up' ? 0 : P.partnerThrowVx * facing;
+    this.vy = dir === 'up' ? P.partnerThrowUpVy : P.partnerThrowVy;
     this.state = 'jump';
   }
 

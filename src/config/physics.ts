@@ -39,6 +39,8 @@ export const PLAYER_PHYSICS = {
   /** Не из ТЗ: дуга брошенного напарника. */
   partnerThrowVx: 2,
   partnerThrowVy: -3.5,
+  /** Не из ТЗ: напарник, брошенный вверх (↑ + действие), — по боссу над головой. */
+  partnerThrowUpVy: -5.5,
   /** Не из ТЗ: подскок, когда напарник вырывается из рук прыжком. */
   breakFreeVelocity: -3,
 } as const;

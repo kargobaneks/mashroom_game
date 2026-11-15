@@ -1,7 +1,9 @@
 import { AGRANOVICH as C, BOSS_RULES } from '../../config/balance';
 import type { Point, Rect } from '../geom';
 import { Projectile } from '../Projectile';
-import type { Rng } from '../Rng';
+import type { BossBase, BossWorld } from './Boss';
+
+export type { BossWorld } from './Boss';
 
 /**
  * intro — ждёт конца реплики при входе на арену; fly — перелетает к точке (неуязвима);
@@ -10,21 +12,12 @@ import type { Rng } from '../Rng';
  */
 export type AgranovichState = 'intro' | 'fly' | 'hover' | 'shoot' | 'recover' | 'defeated';
 
-/** То, что боссу нужно от мира. Узкий интерфейс — босса легко тестировать отдельно. */
-export interface BossWorld {
-  readonly rng: Rng;
-  /** Центр ближайшего игрока, null — игроков нет. */
-  target(from: Rect): Point | null;
-  spawn(p: Projectile): void;
-  emit(ev: { type: 'bossPhase' } | { type: 'bossDefeated' } | { type: 'sfx'; name: string }): void;
-}
-
 /**
  * Босс 1: Екатерина Агранович. Перелетает между 4 точками, останавливается на 1 с и стреляет
  * веером струй латте в сторону игрока. Струи не летят выше её точки — держаться выше безопасно.
  * После 3 попаданий — вторая фаза: 5 пейнтбольных шариков. 6 попаданий.
  */
-export class Agranovich implements Rect {
+export class Agranovich implements BossBase {
   readonly w = C.width;
   readonly h = C.height;
   x: number;
@@ -76,6 +69,18 @@ export class Agranovich implements Rect {
 
   get defeated(): boolean {
     return this.state === 'defeated';
+  }
+
+  get waiting(): boolean {
+    return this.state === 'intro';
+  }
+
+  get flying(): boolean {
+    return this.state === 'fly' || this.state === 'intro';
+  }
+
+  windFor(_body: Rect): number {
+    return 0;
   }
 
   /** Касание ранит игрока. */

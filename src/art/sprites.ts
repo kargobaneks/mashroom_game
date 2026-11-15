@@ -419,6 +419,229 @@ const agranovich: SpriteDef = {
   },
 };
 
+// ——— Уровень 2 ———
+
+/** Наложить кусок кадра top на base со строки y0 ('.' в top — пропуск). */
+const over = (base: readonly string[], top: readonly string[], y0: number): string[] =>
+  base.map((r, y) => {
+    const t = top[y - y0];
+    if (!t) return r;
+    return [...r].map((c, x) => (t[x] && t[x] !== '.' ? t[x] : c)).join('');
+  });
+const URALOV_HEAD = [
+  '..........D...D.',
+  '.........DHD.DHD',
+  '........DHHHDHHH',
+  '.......DHHHHHHHH',
+  '.......DHHHHHHHH',
+  '.......DHHSHHHHS',
+  '.......DHSSSHSSS',
+  '.......DHSSSSSSS',
+  '.......DSSSSSSSS',
+  '.......DSSDDDSSS',
+  '......DSDSSEDSSS',
+  '......DDSSSSSSSS',
+  '.......DSSSSSSSS',
+  '.......DSDSSSSSS',
+  '.......DSSDSSSDD',
+  '........DSDSDSSS',
+  '.........DDSDSDS',
+  '..........DDDDDD',
+];
+const URALOV_TORSO = [
+  '..........DDDSSH',
+  '.........DDDDDHH',
+  '.........DDDDDHH',
+  '.........DDDDDHH',
+  '.........DDDDDHH',
+  '.........DDDDDHD',
+  '.........DDDDDHH',
+  '.........DDDDDHH',
+  '.........DDDDDHH',
+  '.........DDDDDHD',
+  '.........DDDDDDD',
+  '...........DDDD.',
+  '...........DSSD.',
+  '..........DDDDD.',
+];
+const URALOV_BODY = mirror([...URALOV_HEAD, ...URALOV_TORSO]);
+const URALOV_WINGS_UP = mirror([
+  'DD..............',
+  'DSD.............',
+  'DSSD............',
+  '.DSSD...........',
+  '..DHHD..........',
+  '..DHHHD.........',
+  '..DHHHHD........',
+  '..DHHDHHD.......',
+  '..DHHDHHHD......',
+  '..DHDHHHDHD.....',
+  '..DHDHHHDHHD....',
+  '..DDHHHDHHHD....',
+  '..DHHHHDHHHD....',
+  '..DHHHDHHHHD....',
+  '..DHHHDHHHD.....',
+  '..DHHDHHHHD.....',
+  '...DHDHHHD......',
+  '...DDHHHHD......',
+  '....DHHHD.......',
+  '....DDHHD.......',
+  '.....DDHD.......',
+  '......DDD.......',
+]);
+const URALOV_WINGS_DOWN = mirror([
+  '.......DD.......',
+  '.....DDHHD......',
+  '....DHHHHD......',
+  '...DHHHDHD......',
+  '..DHHHDHHD......',
+  '..DHHDHHHD......',
+  '.DHHDHHHHD......',
+  '.DHDHHHHD.......',
+  'DHHDHHHHD.......',
+  'DHDHHHDD........',
+  'DSDDDD..........',
+  'DSSD............',
+  '.DD.............',
+]);
+const uralovFace = (rows: readonly string[]) =>
+  patch(rows, [
+    // Чуб падает на лоб справа, вихор на макушке.
+    [18, 5, 'H'],
+    [19, 6, 'H'],
+    [18, 6, 'H'],
+    [20, 6, 'H'],
+    [17, 5, 'H'],
+    [22, 0, 'D'],
+    [23, 1, 'D'],
+    [22, 1, 'H'],
+    // Ухмылка: правый угол рта выше.
+    [17, 14, 'S'],
+    [18, 13, 'D'],
+  ]);
+const uralovEyes = (rows: readonly string[], c: string) => rows.map((r) => r.replace(/E/g, c));
+const URALOV_IDLE = uralovEyes(uralovFace(over(URALOV_BODY, URALOV_WINGS_UP, 7)), 'D');
+const URALOV_FLAP = uralovEyes(uralovFace(over(URALOV_BODY, URALOV_WINGS_DOWN, 17)), 'D');
+const URALOV_HIT = uralovEyes(uralovFace(over(URALOV_BODY, URALOV_WINGS_DOWN, 17)), 'S');
+const URALOV_FREED = uralovEyes(
+  patch(uralovFace(URALOV_BODY), [
+    [8, 18, 'D'],
+    [8, 19, 'D'],
+    [8, 20, 'D'],
+    [8, 21, 'D'],
+    [8, 22, 'D'],
+    [8, 23, 'D'],
+    [8, 24, 'D'],
+    [8, 25, 'D'],
+    [8, 26, 'S'],
+    [8, 27, 'D'],
+    [23, 18, 'D'],
+    [23, 19, 'D'],
+    [23, 20, 'D'],
+    [23, 21, 'D'],
+    [23, 22, 'D'],
+    [23, 23, 'D'],
+    [23, 24, 'D'],
+    [23, 25, 'D'],
+    [23, 26, 'S'],
+    [23, 27, 'D'],
+    [14, 14, 'S'],
+    [15, 14, 'S'],
+    [16, 14, 'S'],
+    [17, 14, 'S'],
+    [13, 14, 'D'],
+    [18, 14, 'D'],
+    [14, 15, 'D'],
+    [15, 15, 'D'],
+    [16, 15, 'D'],
+    [17, 15, 'D'],
+  ]),
+  'D',
+);
+
+/**
+ * Семён Уралов: анфас, крупная голова (шарж, без унижающих деталей — ТЗ). Узнаваемость: взъерошенные
+ * зачёсанные вверх волосы с залысинами и чубом набок, полуприкрытые глаза, щетина, ухмылка,
+ * тёмный пиджак поверх коричневой рубашки. Летает, раскинув полы пиджака, как крылья, — как
+ * «летучий кот» уровня 2 оригинала. Образ утверждает сам Семён (ТЗ).
+ */
+const uralov: SpriteDef = {
+  w: 32,
+  h: 32,
+  palette: { D: 0x000000, S: 0xfcbcb0, H: 0x881400 },
+  frames: { idle: URALOV_IDLE, flap: URALOV_FLAP, hit: URALOV_HIT, freed: URALOV_FREED },
+};
+
+/** Панический заголовок: газета с красной шапкой «!!!». */
+const HEADLINE_A = [
+  'DDDDDDDDDDDDDDDD',
+  'DWWWWWWWWWWWWWWD',
+  'DWRRRRRRRRRRRRWD',
+  'DWRRWRRWRRWRRRWD',
+  'DWRRWRRWRRWRRRWD',
+  'DWRRWRRWRRWRRRWD',
+  'DWRRRRRRRRRRRRWD',
+  'DWRRWRRWRRWRRRWD',
+  'DWWWWWWWWWWWWWWD',
+  'DWDDWDDDWDDWDDWD',
+  'DWWWWWWWWWWWWWWD',
+  'DDDDDDDDDDDDDDDD',
+];
+const headline: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, W: 0xfcfcfc, R: 0xf83800 },
+  frames: {
+    fly1: HEADLINE_A,
+    // Уголок газеты трепещет.
+    fly2: patch(HEADLINE_A, [
+      [15, 0, '.'],
+      [14, 0, '.'],
+      [15, 1, '.'],
+      [14, 1, 'D'],
+      [13, 0, 'D'],
+    ]),
+    idle: HEADLINE_A,
+  },
+};
+
+/** Кабель-змейка: свёрнутый оранжевый кабель с вилкой; кадры — вилка вверху и внизу. */
+const cable: SpriteDef = {
+  w: 12,
+  h: 12,
+  palette: { D: 0x000000, O: 0xe45c10, Y: 0xf8b800 },
+  frames: {
+    roll1: [
+      '....DDDD....',
+      '..DDOOOODD..',
+      '.DOODDDDOOD.',
+      '.DODOOOODOD.',
+      'DODODDDDODOD',
+      'DODODOODODOD',
+      'DODODDODODOD',
+      'DODOOOODODOD',
+      '.DODDDDDOOD.',
+      '.DOOOOOOODDD',
+      '..DDOOOODYYD',
+      '....DDDD.DDD',
+    ],
+    roll2: [
+      '....DDDD.DDD',
+      '..DDOOOODYYD',
+      '.DOODDDDDOD.',
+      '.DODOOOOODD.',
+      'DODODDDDODOD',
+      'DODODOODODOD',
+      'DODODDODODOD',
+      'DODOOOODODOD',
+      '.DODDDDDOOD.',
+      '.DOOOOOOOOD.',
+      '..DDOOOODD..',
+      '....DDDD....',
+    ],
+  },
+};
+
 // ——— Механизмы ———
 
 /** Помпа-дозатор на бутылке сиропа (лифт): носик и шток. */
@@ -476,6 +699,9 @@ export const SPRITES = {
   stream,
   paintball,
   agranovich,
+  uralov,
+  headline,
+  cable,
   pump,
   jug,
 } as const satisfies Record<string, SpriteDef>;

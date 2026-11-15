@@ -134,7 +134,7 @@ export function serviceCounter(wTiles) {
         pix.box(px, y + 12, 14, SCREEN_BOTTOM - y - 16, C.brown, C.darkOlive);
     },
     collide(m, col, top) {
-      m.solid(col, col + wTiles - 1, top, 14);
+      m.oneway(col, col + wTiles - 1, top);
     },
   };
 }
@@ -158,7 +158,7 @@ export const latteCup = {
     pix.hline(x, y + 31, 32, C.silver);
   },
   collide(m, col, top) {
-    m.solid(col, col + 1, top, top + 1);
+    m.oneway(col, col + 1, top);
   },
 };
 
@@ -199,7 +199,7 @@ export const sugar = {
     pix.rect(x + 4, y + 20, 8, 10, C.cream);
   },
   collide(m, col, top) {
-    m.solid(col, col, top, top + 1);
+    m.oneway(col, col, top);
   },
 };
 
@@ -217,7 +217,7 @@ export const icedLatte = {
     pix.vline(x + 11, y - 4, 2, C.green);
   },
   collide(m, col, top) {
-    m.solid(col, col, top, top + 1);
+    m.oneway(col, col, top);
   },
 };
 
@@ -320,7 +320,7 @@ export const step = {
     pix.vline(x + 7, y + 2, T - 3, C.darkOlive);
   },
   collide(m, col, top) {
-    m.solid(col, col, top, top);
+    m.oneway(col, col, top);
   },
 };
 
@@ -336,7 +336,7 @@ export function counterBlock(wTiles) {
       for (let k = x + 4; k < x + w - 4; k += 16) pix.box(k, y + 4, 12, 10, C.tan, C.darkOlive);
     },
     collide(m, col, top) {
-      m.solid(col, col + wTiles - 1, top, top);
+      m.oneway(col, col + wTiles - 1, top);
     },
   };
 }

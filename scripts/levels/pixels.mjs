@@ -36,6 +36,11 @@ export const NES = {
   pink: 0xf878f8,
   palePink: 0xf8b8f8,
   rose: 0xf85898,
+  violet: 0x4428bc,
+  periwinkle: 0x6888fc,
+  azure: 0x0078f8,
+  mint: 0xb8f8d8,
+  ledGreen: 0x58d854,
 };
 
 export class Pix {
