@@ -1,48 +1,69 @@
 import type Phaser from 'phaser';
+import { playSfx } from '../systems/Audio';
 import type { Controls } from '../systems/Input';
 import { uiText } from './text';
 
-export interface MenuItem {
-  readonly label: string;
-  readonly enabled?: boolean;
-}
+import { nextEnabled, type MenuItem } from './menuLogic';
 
-/** Индекс следующего доступного пункта (с переходом через край). */
-export function nextEnabled(items: readonly MenuItem[], from: number, dir: 1 | -1): number {
-  const n = items.length;
-  for (let k = 1; k <= n; k++) {
-    const i = (((from + dir * k) % n) + n) % n;
-    if (items[i]?.enabled !== false) return i;
-  }
-  return from;
-}
+export type { MenuItem };
 
 /** Вертикальное меню: ↑↓ — выбор, прыжок/действие/Start — подтвердить. */
 export class Menu {
   private index: number;
+  private items: readonly MenuItem[];
   private readonly texts: Phaser.GameObjects.BitmapText[];
 
   constructor(
-    scene: Phaser.Scene,
-    private readonly items: readonly MenuItem[],
+    private readonly scene: Phaser.Scene,
+    items: readonly MenuItem[],
     x: number,
     y: number,
     lineHeight: number,
   ) {
+    this.items = items;
     this.index = items[0]?.enabled === false ? nextEnabled(items, 0, 1) : 0;
-    this.texts = items.map((it, i) => uiText(scene, x, y + i * lineHeight, it.label));
+    this.texts = items.map((_, i) => uiText(scene, x, y + i * lineHeight, ''));
     this.render();
   }
 
-  /** Возвращает индекс выбранного пункта, если игрок подтвердил выбор на этом шаге. */
-  update(controls: Controls): number | null {
+  get objects(): Phaser.GameObjects.GameObject[] {
+    return this.texts;
+  }
+
+  setDepth(depth: number): this {
+    for (const t of this.texts) t.setDepth(depth);
+    return this;
+  }
+
+  setScrollFactor(f: number): this {
+    for (const t of this.texts) t.setScrollFactor(f);
+    return this;
+  }
+
+  /** Сменить подписи (число пунктов то же). */
+  setLabels(items: readonly MenuItem[]): void {
+    this.items = items;
+    this.render();
+  }
+
+  /**
+   * Возвращает индекс выбранного пункта, если игрок подтвердил выбор на этом шаге.
+   * Start подтверждает только в меню без своего смысла для Start (см. confirmWithStart).
+   */
+  update(controls: Controls, confirmWithStart = true): number | null {
     if (controls.anyPressed('down')) this.move(1);
     if (controls.anyPressed('up')) this.move(-1);
-    return controls.anyPressed('jump', 'action', 'start') ? this.index : null;
+    const keys = confirmWithStart
+      ? (['jump', 'action', 'start'] as const)
+      : (['jump', 'action'] as const);
+    if (!controls.anyPressed(...keys)) return null;
+    playSfx(this.scene, 'menu');
+    return this.index;
   }
 
   private move(dir: 1 | -1): void {
     this.index = nextEnabled(this.items, this.index, dir);
+    playSfx(this.scene, 'menu');
     this.render();
   }
 

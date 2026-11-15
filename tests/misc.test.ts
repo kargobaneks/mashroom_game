@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LEVEL_IDS, STORY } from '../src/config/levels';
 import { hasText, t } from '../src/systems/Text';
 import { computeZoom } from '../src/systems/Zoom';
-import { nextEnabled } from '../src/ui/Menu';
+import { nextEnabled } from '../src/ui/menuLogic';
 
 describe('computeZoom', () => {
   it('uses the largest integer scale that fits, clamped to 1…4', () => {

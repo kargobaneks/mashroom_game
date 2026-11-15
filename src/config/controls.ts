@@ -30,6 +30,18 @@ export const GLOBAL_KEYS = {
   mute: 'M',
 } as const satisfies Record<string, KeyName>;
 
+/** Отладочные клавиши — только в `npm run dev` (ТЗ: «Отладочные клавиши»). */
+export const DEBUG_KEYS = {
+  god: 'F1',
+  warpToBoss: 'F2',
+  levelSelect: 'F3',
+  hitboxes: 'F4',
+  slowMotion: 'F5',
+} as const satisfies Record<string, KeyName>;
+
+/** Замедление по F5: логика идёт раз в столько шагов (×0,25). */
+export const DEBUG_SLOW_MOTION_STEPS = 4;
+
 /** Геймпад, стандартная раскладка Gamepad API. Первый подключённый — игрок 1, второй — игрок 2. */
 export const GAMEPAD = {
   buttons: {

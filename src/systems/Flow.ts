@@ -140,3 +140,16 @@ export function applyEvent(run: Run, ev: FlowEvent): Transition {
       return { run: null, route: { scene: 'Title' } };
   }
 }
+
+/** Отладка (F3): прохождение, поставленное на начало уровня. Аттракционы парка — внутри хаба. */
+export function runAtLevel(run: Run, level: LevelId): Run {
+  if (isParkLevel(level)) {
+    const step = STORY.findIndex((s) => s.kind === 'park');
+    const parkKeys = PARK_LEVELS.filter((l) => l < level);
+    return { ...run, step, parkLevel: level, parkKeys };
+  }
+  const step = STORY.findIndex((s) => s.kind === 'level' && s.level === level);
+  if (step < 0) throw new Error(`Level ${level} is not in the story`);
+  const parkKeys = level === FINAL_LEVEL ? [...PARK_LEVELS] : [];
+  return { ...run, step, parkLevel: null, parkKeys };
+}

@@ -1,11 +1,14 @@
 /**
  * Физика игрока и бросков. Стартовые значения из ТЗ, единицы — пиксели за кадр при 60 к/с
  * (для гравитации — пиксели за кадр за кадр). Подбираются на плейтесте.
+ * Пометка «не из ТЗ» — значение, которого в ТЗ нет; выбрано нами, сверить на плейтесте.
  */
 export const PLAYER_PHYSICS = {
-  walkSpeed: 1.25,
-  walkSpeedLightItem: 1.25,
-  walkSpeedHeavyItem: 0.75,
+  /** Замер оригинала (референс уровня 1): 2 px/кадр. В ТЗ было 1,25. */
+  walkSpeed: 2,
+  walkSpeedLightItem: 2,
+  /** Тяжёлый предмет замедляет в той же пропорции, что в ТЗ (0,75 / 1,25). */
+  walkSpeedHeavyItem: 1.2,
   jumpVelocity: -4.5,
   jumpVelocityHeavyItem: -3.5,
   gravity: 0.25,
@@ -14,7 +17,8 @@ export const PLAYER_PHYSICS = {
   jumpCutVelocity: -1.5,
   hitboxStanding: { width: 12, height: 20 },
   hitboxCrouching: { width: 12, height: 12 },
-  invulnerableFrames: 90,
+  /** Замер оригинала: 63 кадра. В ТЗ было 90. */
+  invulnerableFrames: 63,
   invulnerableBlinkFrames: 4,
   knockback: { x: 1.5, y: -2 },
   stunFrames: 60,
@@ -22,10 +26,40 @@ export const PLAYER_PHYSICS = {
   /** 0 = выключено, как в оригинале. */
   coyoteFrames: 0,
   jumpBufferFrames: 0,
+  /** Не из ТЗ: сколько кадров игрок неуправляем после удара. */
+  hurtFrames: 20,
+  /** Не из ТЗ: пауза между гибелью и возрождением. */
+  deathFrames: 60,
+  /** Не из ТЗ: игрок мигает на месте перед тем, как снова получить управление. */
+  respawnFrames: 30,
+  /** Не из ТЗ: сколько кадров игнорируются oneway-платформы после «вниз + прыжок». */
+  dropThroughFrames: 10,
+  /** Не из ТЗ: на каком расстоянии перед собой игрок может взять предмет. */
+  pickupReach: 3,
+  /** Не из ТЗ: дуга брошенного напарника. */
+  partnerThrowVx: 2,
+  partnerThrowVy: -3.5,
+  /** Не из ТЗ: подскок, когда напарник вырывается из рук прыжком. */
+  breakFreeVelocity: -3,
 } as const;
 
 export const THROW_PHYSICS = {
   forwardSpeed: 4,
   upSpeed: 5,
   groundSpeed: 3,
+  /** Не из ТЗ: сколько кадров брошенный предмет не задевает бросившего. */
+  ownerImmuneFrames: 8,
+  /**
+   * Как в оригинале: брошенный вперёд или по земле предмет, ни во что не попав, падает на
+   * ближайшую платформу и остаётся лежать. Дальность полёта до падения, px — не замерена, подобрать.
+   */
+  missRange: 128,
+} as const;
+
+/** Предметы для броска (ТЗ: «Предметы, бросок, кооп»). */
+export const ITEMS = {
+  box: { width: 16, height: 16, heavy: false, hideable: true },
+  case: { width: 16, height: 16, heavy: true, hideable: true },
+  gravity: 0.25,
+  maxFallSpeed: 4,
 } as const;

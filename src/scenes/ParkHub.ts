@@ -1,6 +1,7 @@
 import { PALETTE } from '../ui/palette';
 import { FINAL_LEVEL, PARK_LEVELS, type LevelId } from '../config/levels';
 import { parkOptions } from '../systems/Flow';
+import { playMusic } from '../systems/Audio';
 import { t } from '../systems/Text';
 import { Menu } from '../ui/Menu';
 import { uiText } from '../ui/text';
@@ -16,6 +17,7 @@ export class ParkHub extends BaseScene {
   }
 
   protected build(): void {
+    playMusic(this, 'park');
     const { remaining, gateOpen } = parkOptions(this.run);
     const have = this.run.parkKeys.length;
     const need = PARK_LEVELS.length;

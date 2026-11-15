@@ -1,5 +1,6 @@
 import { PALETTE } from '../ui/palette';
 import { DISPLAY } from '../config/display';
+import { playMusic } from '../systems/Audio';
 import { t } from '../systems/Text';
 import { uiText } from '../ui/text';
 import { BaseScene } from './BaseScene';
@@ -16,6 +17,7 @@ export class Title extends BaseScene {
 
   protected build(): void {
     this.frame = 0;
+    playMusic(this, 'title');
     const cx = DISPLAY.width / 2;
     uiText(this, cx, 64, t('game.title'), { align: 'center' }).setScale(2);
     uiText(this, cx, 92, t('game.subtitle'), { align: 'center' });
