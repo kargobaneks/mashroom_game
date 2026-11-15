@@ -1,0 +1,62 @@
+{
+  "game.title": "КОМНАТА",
+  "game.subtitle": "Кто украл будущее",
+  "game.tagline": "первый подкаст в жанре объективной гонзо-журналистики",
+  "title.pressStart": "НАЖМИТЕ START",
+
+  "hero.sergey": "Сергей",
+  "hero.ivan": "Иван",
+  "hero.sergey.initial": "С",
+  "hero.ivan.initial": "И",
+
+  "select.title": "ВЫБОР ИГРОКОВ",
+  "select.onePlayer": "1 игрок",
+  "select.twoPlayers": "2 игрока",
+  "select.hero": "КЕМ ИГРАЕМ?",
+
+  "hint.confirm": "Z / START — дальше",
+  "hint.menu": "↑↓ — выбор, Z / START — ок",
+  "hint.stubLevel": "Z — пройти уровень, X — проиграть",
+  "hint.inputMonitor": "Ввод игроков:",
+
+  "scene.boot": "Загрузка…",
+  "scene.cutscene": "КАТ-СЦЕНА: {id}",
+  "scene.level": "УРОВЕНЬ {n}",
+  "scene.wire": "КАКОЙ ПРОВОД РЕЗАТЬ?",
+  "scene.bonus": "БОНУС-ИГРА",
+  "scene.park": "МЕДИАПАРК",
+  "scene.gameOver": "КОНЕЦ ИГРЫ",
+  "scene.ending": "ФИНАЛ",
+
+  "cutscene.intro": "Ночь. Из архива пропадает «Капсула времени».",
+  "cutscene.l1_end": "Бомба была отвлекающим манёвром.",
+  "cutscene.l2_end": "След ведёт в порт.",
+  "cutscene.l3_end": "Капсулы на корабле нет. GRPZDC замечает злодея у склада.",
+  "cutscene.l4_end": "Пока герои выбирались, злодей открыл капсулу.",
+  "cutscene.l5_end": "Злодей вызывает героев в медиапарк.",
+
+  "level.1.name": "«Сытая Москва»: кофейня",
+  "level.2.name": "Серверная когнитивной войны",
+  "level.3.name": "Порт старого мирового порядка",
+  "level.4.name": "«Заморозка-2007»",
+  "level.5.name": "Дореформенный архив",
+  "level.6.name": "Медиапарк: Часовая башня",
+  "level.7.name": "Медиапарк: Салун",
+  "level.8.name": "Медиапарк: Нейросеть",
+  "level.9.name": "Студия Конца Истории",
+
+  "wire.hype": "хайп",
+  "wire.meaning": "смысл",
+
+  "bonus.crane": "Кран",
+  "bonus.stars": "Звёзды",
+
+  "park.gate": "Ворота студии",
+  "park.gateLocked": "Ворота студии (ключи: {have}/{need})",
+  "park.keys": "Ключи: {have}/{need}",
+
+  "gameOver.continue": "Продолжить ({left})",
+  "gameOver.menu": "В меню",
+
+  "ending.text": "Будущее возвращено. Ведущие впервые выходят из комнаты."
+}
