@@ -30,8 +30,24 @@ const DEPTH = {
   overlay: 100,
 } as const;
 
+/** Облако «заглушки», слетающее с гостя после победы. */
+const BURST = {
+  count: 28,
+  size: 3,
+  radius: 40,
+  rise: 16,
+  ms: 900,
+  colors: [0x000000, 0x940084, 0x3c3c3c, 0x7c7c7c],
+} as const;
+
 /** Вода в раковине: полупрозрачная, со светлой кромкой. */
-const WATER = { color: 0x3cbcfc, alpha: 0.65, surface: 0xa4e4fc, surfaceH: 2 } as const;
+const WATER = {
+  color: 0x3cbcfc,
+  alpha: 0.65,
+  surface: 0xa4e4fc,
+  surfaceH: 2,
+  stream: 0x0058f8,
+} as const;
 
 /** Мигание раз в N кадров. */
 function blink(timer: number): boolean {
@@ -69,6 +85,7 @@ export class LevelView {
   private readonly debug: Phaser.GameObjects.Graphics;
   private readonly collisionLayers: Phaser.Tilemaps.TilemapLayer[] = [];
   private phaseOverlay: Phaser.GameObjects.Rectangle | null = null;
+  private stream: Phaser.GameObjects.Rectangle | null = null;
   private readonly water = new Map<
     object,
     { body: Phaser.GameObjects.Rectangle; top: Phaser.GameObjects.Rectangle }
@@ -191,7 +208,46 @@ export class LevelView {
     this.drawDebug();
   }
 
+  /**
+   * «Заглушка» злодея слетает с гостя тёмным облаком частиц (ТЗ: «Победа: заглушка слетает
+   * с него частицами»).
+   */
+  burstFrom(r: Rect): void {
+    const cx = r.x + r.w / 2;
+    const cy = r.y + r.h / 2;
+    for (let i = 0; i < BURST.count; i++) {
+      const a = (i / BURST.count) * Math.PI * 2;
+      const color = BURST.colors[i % BURST.colors.length]!;
+      const dot = this.scene.add
+        .rectangle(cx, cy, BURST.size, BURST.size, color)
+        .setDepth(DEPTH.projectile);
+      this.scene.tweens.add({
+        targets: dot,
+        x: cx + Math.cos(a) * BURST.radius,
+        y: cy + Math.sin(a) * BURST.radius - BURST.rise,
+        alpha: 0,
+        duration: BURST.ms,
+        ease: 'Quad.easeOut',
+        onComplete: () => dot.destroy(),
+      });
+    }
+  }
+
   private syncWater(): void {
+    // Струя из крана, пока мойка наполняется.
+    const stream = this.world.level.zones.find((z) => z.kind === 'stream');
+    const flood = this.world.mech.floods[0];
+    if (stream && flood) {
+      this.stream ??= this.scene.add
+        .rectangle(0, 0, 1, 1, WATER.stream)
+        .setOrigin(0)
+        .setDepth(DEPTH.water);
+      const on = flood.active && !flood.full;
+      this.stream
+        .setVisible(on)
+        .setPosition(stream.x, stream.y)
+        .setSize(stream.w, Math.max(0, flood.level - stream.y));
+    }
     for (const fl of this.world.mech.floods) {
       let v = this.water.get(fl.zone);
       if (!v) {
@@ -240,7 +296,7 @@ export class LevelView {
   }
 
   private bossView(b: Boss, f: number): SpriteView {
-    const frame = b.defeated || b.invuln > 0 ? 'hit' : b.telegraphing ? 'aim' : 'idle';
+    const frame = b.defeated ? 'freed' : b.invuln > 0 ? 'hit' : b.telegraphing ? 'aim' : 'idle';
     const bob =
       b.state === 'fly' || b.state === 'intro'
         ? Math.round(
@@ -254,8 +310,7 @@ export class LevelView {
       rect: b,
       depth: DEPTH.boss,
       flip: target !== null && target.x < b.x + b.w / 2,
-      visible: b.invuln === 0 || blink(b.invuln),
-      alpha: b.defeated ? 0.5 : 1,
+      visible: b.defeated || b.invuln === 0 || blink(b.invuln),
       flash: b.telegraphing && !blink(b.timer),
       offsetY: bob,
     };

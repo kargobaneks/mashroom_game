@@ -71,6 +71,7 @@ export class World implements BossWorld {
   private readonly spawnedEnemies = new Set<number>();
   private duetReadyFrame = 0;
   private ammoTimer = 0;
+  private ammoDrops = 0;
   private exited = false;
   mech: Mechanisms;
   /** Ящики, содержимое которых уже открыли (не прячем его снова при сбросе сегмента). */
@@ -445,9 +446,14 @@ export class World implements BossWorld {
       this.ammoTimer = 0;
     } else if (++this.ammoTimer >= BOSS_RULES.ammoDropFrames) {
       this.ammoTimer = 0;
+      // Из жёлобов арены (точки ammo) по очереди; если их нет — в случайном месте под потолком.
+      const chutes = this.level.spawns.filter((sp) => sp.type === 'ammo' && contains(arena, sp));
       const T = this.grid.size;
-      const x = arena.x + this.rng.int(2 * T, arena.w - 2 * T);
-      this.items.push(new Item('box' satisfies ItemKind, { x, y: arena.y + 2 * T }));
+      const at =
+        chutes.length > 0
+          ? chutes[this.ammoDrops++ % chutes.length]!
+          : { x: arena.x + this.rng.int(2 * T, arena.w - 2 * T), y: arena.y + 2 * T };
+      this.items.push(new Item('box' satisfies ItemKind, at));
     }
   }
 
@@ -536,6 +542,15 @@ export class World implements BossWorld {
     this.enemies = this.enemies.filter((e) => e.alive);
     this.projectiles = this.projectiles.filter((p) => p.alive);
     this.items = this.items.filter((i) => i.state !== 'gone');
+  }
+
+  /** Шаг после победы над боссом: игроки стоят, босс опускается, предметы падают. */
+  stepCinematic(): void {
+    this.frame++;
+    this.projectiles = [];
+    this.boss?.update(this);
+    for (const it of this.items)
+      if (it.state === 'falling' || it.state === 'resting') it.update(this);
   }
 
   // ——— отладка ———

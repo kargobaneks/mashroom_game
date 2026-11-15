@@ -239,35 +239,39 @@ export const oven = {
   },
 };
 
-/** Раковина: бортики твёрдые, дно твёрдое, внутри — пусто (туда пойдёт вода). */
-export function sinkBasin(wTiles, depthTiles) {
-  return {
-    w: wTiles,
-    h: depthTiles,
-    draw(pix, x, y) {
-      const w = wTiles * T;
-      const h = depthTiles * T;
-      pix.rect(x, y, w, h, C.silver);
-      pix.rect(x + T, y, w - 2 * T, h - T, C.gray);
-      pix.rect(x + T + 2, y, w - 2 * T - 4, h - T - 2, C.black);
-      pix.hline(x, y, T, C.white);
-      pix.hline(x + w - T, y, T, C.white);
-      pix.ellipse(x + w / 2, y + h - T - 2, 5, 2, C.silver);
-    },
-    collide(m, col, top) {
-      m.solid(col, col, top, top + depthTiles - 1);
-      m.solid(col + wTiles - 1, col + wTiles - 1, top, top + depthTiles - 1);
-      m.solid(col, col + wTiles - 1, top + depthTiles - 1, top + depthTiles - 1);
-    },
-  };
+/**
+ * Внутренность огромной мойки (масштаб бурундука): шлифованная сталь, слив на дне.
+ * Рисуется как фон экрана; борта и дно — столкновения ставятся отдельно.
+ */
+export function sinkInterior(pix, x, y, w, h, bottomY) {
+  pix.fillPattern(x, y, w, h, (px, py) => {
+    if (py >= bottomY) return py === bottomY ? C.white : C.silver;
+    return px % 7 === 0 || (px * 3 + py) % 53 === 0 ? C.silver : C.paleSky;
+  });
+  // Слив.
+  const cx = x + Math.floor(w / 2);
+  pix.ellipse(cx, bottomY + 2, 12, 2, C.gray);
+  pix.ellipse(cx, bottomY + 2, 8, 1, C.black);
 }
 
-/** Кран над раковиной (декор). */
+/** Стальной борт мойки (передний план). */
+export function sinkWall(pix, x, y, w, h) {
+  pix.rect(x, y, w, h, C.silver);
+  pix.vline(x + 2, y, h, C.white);
+  pix.vline(x + w - 3, y, h, C.gray);
+  pix.rect(x - 2, y, w + 4, 4, C.white);
+  pix.hline(x - 2, y + 4, w + 4, C.gray);
+}
+
+/** Кран над мойкой: труба сверху, носик вправо. Возвращает точку, откуда бьёт струя. */
 export function faucet(pix, x, y) {
-  pix.rect(x, y, 6, 40, C.silver);
-  pix.rect(x, y, 40, 6, C.silver);
-  pix.rect(x + 34, y + 6, 6, 8, C.silver);
-  pix.hline(x, y, 40, C.white);
+  pix.rect(x, y, 8, 30, C.silver);
+  pix.vline(x + 1, y, 30, C.white);
+  pix.rect(x, y + 24, 40, 8, C.silver);
+  pix.hline(x, y + 24, 40, C.white);
+  pix.rect(x + 34, y + 32, 8, 6, C.gray);
+  pix.ellipse(x + 4, y - 2, 8, 3, C.red);
+  return { x: x + 36, y: y + 38 };
 }
 
 /** Вентиль у пола (декор; зона-триггер ставится отдельно). */

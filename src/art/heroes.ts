@@ -10,118 +10,181 @@ import type { HeroId } from '../systems/Flow';
 
 export const HERO_SPRITE = { width: 16, height: 24 } as const;
 
-/** Цвета из палитры NES. */
+/**
+ * Цвета из палитры NES, как у героев NES-платформеров: чёрный контур (D), основной цвет (H),
+ * светлый для лица и рук (S). У Сергея основной — рыжий: волосы, борода и пиджак одного цвета
+ * (так держится силуэт при трёх цветах). У Ивана основной — каштановый (волосы), рубашка чёрная.
+ */
 export const HERO_PALETTES: Readonly<Record<HeroId, Readonly<Record<'D' | 'S' | 'H', number>>>> = {
-  sergey: { D: 0x0000bc, S: 0xfcbcb0, H: 0xe45c10 },
-  ivan: { D: 0x000000, S: 0xfcbcb0, H: 0x503000 },
+  sergey: { D: 0x000000, S: 0xfcbcb0, H: 0xe45c10 },
+  ivan: { D: 0x000000, S: 0xfcbcb0, H: 0x881400 },
 };
 
-// E — глаза: в открытых D, в закрытых S.
+// Кадр 16×24: голова — строки 0–12 (крупная, в половину роста — узнаётся по силуэту),
+// тело — 13–19, ноги — 20–23. Смотрят вправо. E — глаз (открыт — D, закрыт — S).
+// J в руках — цвет рукава (у Сергея пиджак H, у Ивана рубашка D).
+
 const HEADS: Readonly<Record<HeroId, readonly string[]>> = {
+  // Сергей: объёмная шевелюра, зачёсанная назад (выпирает за затылок), борода клином вперёд.
   sergey: [
-    '......HHHH......',
-    '....HHHHHHHH....',
-    '...HHHHHHHHHH...',
-    '...HHHHSSSSHH...',
-    '...HHHSSSSSSS...',
-    '...HHSSSESSES...',
-    '...HHSSSSSSSS...',
-    '....HHSHSSSHS...',
-    '....HHHHHHHHH...',
-    '.....HHHHHHH....',
+    '...DDDDDD.......',
+    '..DHHHHHHDDD....',
+    '.DHHHHHHHHHHDD..',
+    'DHHHHHHHHHHHHHD.',
+    'DHHHHHHHHSSSSSD.',
+    '.DHHHHHSSSSSSSD.',
+    '..DHHDSSSSESSSD.',
+    '..DHSDSSSSESSSSD',
+    '..DHHSSSSSSSSSD.',
+    '...DSSSSSHHHHHHD',
+    '...DSSHHHHDDHHHD',
+    '....DHHHHHHHHHD.',
+    '.....DDDDDDDDD..',
   ],
+
+  // Иван: высокий кок козырьком вперёд, гладко выбрит, полуулыбка, серёжка.
   ivan: [
-    '........HHHH....',
-    '.....HHHHHHHH...',
-    '....HHHHHHHHHH..',
-    '...HHHHHSSSSH...',
-    '...HHHSSSSSSS...',
-    '...HHSSSESSES...',
-    '...DSSSSSSSSS...',
-    '....SSSSSSSSS...',
-    '....SSSSSDDDS...',
-    '.....SSSSSSS....',
+    '.......DDDDDD...',
+    '.....DDHHHHHHD..',
+    '....DHHHHHHHHHD.',
+    '...DHHHHHHHHHHHD',
+    '..DHHHHHHHHDDDD.',
+    '..DHHHHSSSSSSSD.',
+    '..DHHDSSSSESSSD.',
+    '..DHHSDSSSESSSSD',
+    '..DHDSSSSSSSSSD.',
+    '...DSSSSSSSDSSD.',
+    '...DSSSSSSSSDDD.',
+    '....DSSSSSSSSD..',
+    '.....DDDDDDDD...',
   ],
 };
 
 const TORSOS: Readonly<Record<HeroId, readonly string[]>> = {
+  // Рыжий пиджак с открытым воротом.
   sergey: [
-    '......DDDD......',
-    '....DDDSSDDD....',
-    '...DDDDSSDDDD...',
-    '...DDDDDSDDDD...',
-    '...DDDDDDDDDD...',
-    '...SDDDDDDDDS...',
-    '...SDDDDDDDDS...',
-    '....DDDDDDDD....',
+    '.....DHSSHD.....',
+    '....DHHSSHHD....',
+    '....DHHHSHHHD...',
+    '....DHHHHHHHD...',
+    '....DHHHHHHHD...',
+    '....DHDHHHHHD...',
+    '.....DDDDDDD....',
   ],
+  // Чёрная рубашка, шея в вороте, пуговицы планки.
   ivan: [
-    '......DDDD......',
-    '....DDDDDDDD....',
-    '...DDDDDDDDDD...',
-    '...DDDDDDDDDD...',
-    '...DDDDDDDDDD...',
-    '...SDDDDDDDDS...',
-    '...SDDDDDDDDS...',
-    '....DDDDDDDD....',
+    '.....DDSSDD.....',
+    '....DDDSSDDD....',
+    '....DDDDHDDDD...',
+    '....DDDDDDDDD...',
+    '....DDDDHDDDD...',
+    '....DHDDDDDDD...',
+    '.....DDDDDDD....',
   ],
 };
 
 const LEGS = {
-  stand: [
-    '....DDDDDDDD....',
-    '....DDD..DDD....',
-    '....DDD..DDD....',
-    '....DDD..DDD....',
-    '....DDD..DDD....',
-    '...DDDD..DDDD...',
-  ],
-  stride: [
-    '....DDDDDDDD....',
-    '....DDD..DDD....',
-    '...DDD....DDD...',
-    '...DD......DD...',
-    '..DDD......DD...',
-    '..DD.......DDD..',
-  ],
-  passA: [
-    '....DDDDDDDD....',
-    '.....DDDDDD.....',
-    '.....DDD.DD.....',
-    '.....DD..DD.....',
-    '.....DD.DDD.....',
-    '....DDD.........',
-  ],
-  passB: [
-    '....DDDDDDDD....',
-    '.....DDDDDD.....',
-    '.....DD.DDD.....',
-    '.....DD..DD.....',
-    '.....DDD.DD.....',
-    '.........DDDD...',
-  ],
-  tuck: [
-    '....DDDDDDDD....',
-    '...DDDD..DDDD...',
-    '...DD......DD...',
-    '..DDD......DDD..',
-    '................',
-    '................',
-  ],
+  stand: ['.....DDD.DDD....', '....DDD...DDD...', '....DD.....DD...', '...DDD.....DDDD.'],
+  stride: ['.....DDD.DDD....', '...DDD.....DDD..', '..DDD.......DDD.', '.DDD.........DDD'],
+  passA: ['.....DDDDDD.....', '.....DDD.DD.....', '....DDD..DD.....', '....DD...DDDD...'],
+  passB: ['.....DDDDDD.....', '.....DD.DDD.....', '.....DD..DDD....', '....DDDD..DD....'],
+  tuck: ['.....DDDDDDD....', '....DD....DDD...', '...DD.......DD..', '................'],
 } as const;
 
+/** Присед: тело под головой (голова + 6 строк, прижато к низу кадра). Руки на коленях. */
 const CROUCH_BODY = [
-  '....DDDDDDDD....',
-  '...SDDDDDDDDS...',
-  '...DDDDDDDDDD...',
+  '....DJJSSJJD....',
+  '...DJJJJJJJJD...',
+  '..DSDJJJJJJDSD..',
+  '...DDDD..DDDD...',
   '..DDDD....DDDD..',
-  '..DDD......DDD..',
-  '.DDDD......DDDD.',
+  '..DDDD....DDDDD.',
 ];
 
 type Legs = keyof typeof LEGS;
 type Arms = 'down' | 'up' | 'back' | 'forward' | 'flail';
 type Eyes = 'open' | 'closed';
+type Pixel = readonly [x: number, y: number, c: string];
+
+const col = (x: number, y0: number, y1: number, c: string): Pixel[] =>
+  Array.from({ length: y1 - y0 + 1 }, (_, i) => [x, y0 + i, c] as const);
+
+// Руки: J — рукав, D — контур, S — кисть. Задняя рука — у затылка (слева), передняя — у лица.
+/** Задняя рука опущена вдоль тела. */
+const BACK_DOWN: Pixel[] = [
+  [3, 14, 'D'],
+  ...col(2, 15, 17, 'D'),
+  ...col(3, 15, 17, 'J'),
+  [2, 18, 'S'],
+  [3, 18, 'S'],
+];
+/** Передняя рука согнута, кулак перед собой. */
+const FRONT_BENT: Pixel[] = [
+  [12, 14, 'D'],
+  [13, 15, 'D'],
+  [12, 15, 'J'],
+  [12, 16, 'J'],
+  [13, 16, 'J'],
+  [14, 16, 'D'],
+  [13, 17, 'S'],
+  [14, 17, 'S'],
+  [15, 17, 'D'],
+  [12, 17, 'D'],
+  [13, 18, 'D'],
+  [14, 18, 'D'],
+];
+const ARMS: Readonly<Record<Arms, readonly Pixel[]>> = {
+  down: [...BACK_DOWN, ...FRONT_BENT],
+  // Держит предмет над головой: обе руки вверх, кисти у верхнего края кадра.
+  up: [
+    ...col(0, 2, 13, 'D'),
+    ...col(1, 2, 13, 'J'),
+    [0, 0, 'S'],
+    [1, 0, 'S'],
+    [0, 1, 'S'],
+    [1, 1, 'S'],
+    ...col(14, 2, 12, 'J'),
+    ...col(15, 2, 12, 'D'),
+    [14, 0, 'S'],
+    [15, 0, 'S'],
+    [14, 1, 'S'],
+    [15, 1, 'S'],
+  ],
+  // Замах / прыжок: задняя рука вверх-назад, передняя согнута.
+  back: [...col(1, 9, 14, 'D'), ...col(2, 9, 14, 'J'), [1, 8, 'S'], [2, 8, 'S'], ...FRONT_BENT],
+  // Бросок: передняя рука вытянута вперёд.
+  forward: [
+    ...BACK_DOWN,
+    [12, 14, 'D'],
+    [13, 14, 'D'],
+    [14, 14, 'D'],
+    [12, 15, 'J'],
+    [13, 15, 'J'],
+    [14, 15, 'J'],
+    [15, 15, 'S'],
+    [12, 16, 'D'],
+    [13, 16, 'D'],
+    [14, 16, 'D'],
+  ],
+  // Удар, падение: руки в стороны.
+  flail: [
+    [1, 14, 'D'],
+    [2, 14, 'J'],
+    [3, 14, 'J'],
+    [0, 13, 'S'],
+    [13, 14, 'J'],
+    [14, 14, 'J'],
+    [15, 14, 'D'],
+    [15, 13, 'S'],
+    [1, 15, 'D'],
+    [2, 15, 'D'],
+    [13, 15, 'D'],
+    [14, 15, 'D'],
+  ],
+};
+
+/** Цвет рукава: у Сергея — пиджак (H), у Ивана — чёрная рубашка (D). */
+const SLEEVE: Readonly<Record<HeroId, 'H' | 'D'>> = { sergey: 'H', ivan: 'D' };
 
 /** Позы из ТЗ: покой 2, ходьба 4, прыжок 1, падение 1, присед 1, с предметом — покой 1 и ходьба 4, бросок 2, удар 1, гибель 3, оглушение 2. */
 export const HERO_POSES = [
@@ -190,6 +253,10 @@ function put(grid: string[][], x: number, y: number, c: string): void {
   if (row && x >= 0 && x < HERO_SPRITE.width) row[x] = c;
 }
 
+const HEAD_ROWS = 13;
+const TORSO_TOP = 13;
+const LEGS_TOP = 20;
+
 /** Собрать кадр: HERO_SPRITE.height строк по HERO_SPRITE.width символов ('.', 'D', 'S', 'H'). */
 export function composeHero(hero: HeroId, pose: HeroPose): string[] {
   const spec = SPECS[pose];
@@ -198,55 +265,30 @@ export function composeHero(hero: HeroId, pose: HeroPose): string[] {
   const grid: string[][] = Array.from({ length: H }, () => Array<string>(W).fill('.'));
   const eye = spec.eyes === 'open' ? 'D' : 'S';
   const head = HEADS[hero].map((r) => r.replace(/E/g, eye));
+  const sleeve = SLEEVE[hero];
+  const draw = (rows: readonly string[], top: number) =>
+    rows.forEach((r, i) => [...r].forEach((c, x) => c !== '.' && put(grid, x, top + i, c)));
 
   if (spec.legs === 'crouch') {
-    // Присед: голова + сжатое тело, прижато к низу кадра.
-    const top = H - head.length - CROUCH_BODY.length;
-    [...head, ...CROUCH_BODY].forEach((r, i) => [...r].forEach((c, x) => put(grid, x, top + i, c)));
-  } else {
-    const bob = spec.bob ? 1 : 0;
-    head.forEach((r, i) => [...r].forEach((c, x) => put(grid, x, i + bob, c)));
-    TORSOS[hero].forEach((r, i) => [...r].forEach((c, x) => put(grid, x, 10 + i, c)));
-    LEGS[spec.legs].forEach((r, i) => [...r].forEach((c, x) => put(grid, x, 18 + i, c)));
+    // Присед: голова + сжатое тело, прижато к низу кадра. Руки — на коленях (в теле).
+    const top = H - HEAD_ROWS - CROUCH_BODY.length;
+    draw(head, top);
+    draw(
+      CROUCH_BODY.map((r) => r.replace(/J/g, sleeve)),
+      top + HEAD_ROWS,
+    );
+    if (spec.arms === 'flail') {
+      put(grid, 2, top + HEAD_ROWS, 'S');
+      put(grid, 13, top + HEAD_ROWS, 'S');
+    }
+    return grid.map((r) => r.join(''));
   }
 
-  const bodyTop = spec.legs === 'crouch' ? H - CROUCH_BODY.length - 1 : 10;
-  const handsY = bodyTop + 5;
-  switch (spec.arms) {
-    case 'down':
-      break;
-    case 'up':
-      // Руки подняты по бокам головы — держат предмет над головой.
-      for (const x of [2, 13]) {
-        put(grid, x, 0, 'S');
-        for (let y = 1; y <= 11; y++) put(grid, x, y, 'D');
-      }
-      put(grid, 3, handsY, 'D');
-      put(grid, 12, handsY, 'D');
-      put(grid, 3, handsY + 1, 'D');
-      put(grid, 12, handsY + 1, 'D');
-      break;
-    case 'back':
-      for (let y = 6; y <= 11; y++) put(grid, 2, y, 'D');
-      put(grid, 2, 5, 'S');
-      put(grid, 3, handsY, 'D');
-      put(grid, 3, handsY + 1, 'D');
-      break;
-    case 'forward':
-      for (let x = 13; x <= 14; x++) put(grid, x, 12, 'D');
-      put(grid, 15, 12, 'S');
-      put(grid, 12, handsY, 'D');
-      put(grid, 12, handsY + 1, 'D');
-      break;
-    case 'flail':
-      put(grid, 1, bodyTop + 1, 'D');
-      put(grid, 2, bodyTop + 1, 'D');
-      put(grid, 13, bodyTop + 1, 'D');
-      put(grid, 14, bodyTop + 1, 'D');
-      put(grid, 0, bodyTop, 'S');
-      put(grid, 15, bodyTop, 'S');
-      break;
-  }
+  const bob = spec.bob ? 1 : 0;
+  draw(head, bob);
+  draw(TORSOS[hero], TORSO_TOP);
+  draw(LEGS[spec.legs], LEGS_TOP);
+  for (const [x, y, c] of ARMS[spec.arms]) put(grid, x, y, c === 'J' ? sleeve : c);
   return grid.map((r) => r.join(''));
 }
 

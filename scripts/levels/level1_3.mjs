@@ -17,7 +17,7 @@ export function buildLevel1Sink() {
   const SHELF_HIGH = 8;
 
   m.paint((p) => K.sinkTiles(p, 0, 0, 112 * TILE, 15 * TILE, FLOOR * TILE));
-  m.solid(0, 98, FLOOR, 14);
+  m.solid(0, 95, FLOOR, 14);
   m.solid(0, 0, 0, 11);
   m.solid(111, 111, 0, 14);
 
@@ -69,34 +69,58 @@ export function buildLevel1Sink() {
   tc(71, OVEN);
   enemy('asterisk', 72, 2);
 
-  // ——— Экран 5 (80–95): бариста, кофе перед раковиной ———
+  // ——— Экран 5 (80–95): бариста, кофе; в конце — тумба у борта огромной мойки ———
   pair(81, FLOOR, null, 'coffee');
-  shelf(88, 4, 'pots', SHELF_LOW);
-  tc(89, SHELF_LOW);
-  enemy('barista', 85, FLOOR);
-  tc(92, FLOOR);
-  tc(93, FLOOR);
+  shelf(84, 4, 'pots', SHELF_LOW);
+  tc(85, SHELF_LOW);
+  enemy('barista', 88, FLOOR);
+  m.prop(K.counter(4), 92, FLOOR); // 92–95, верх y = 160
+  m.prop(K.plateStack(2), 95, COUNTER); // стопка тарелок — ступенька на борт (верх y = 128)
+  tc(93, COUNTER);
+  tc(94, COUNTER);
 
-  // ——— Экран 6 (96–111): раковина с вентилем ———
-  // Вентиль — на дне раковины, кораблик всплывает рядом: открыл воду — сразу прыгай на него.
-  // Вода поднимается до y = 96, с кораблика — на уступ с выходом справа. Без воды уступ не достать.
-  m.decor((p) => K.faucet(p, 101 * TILE, 3 * TILE));
-  m.prop(K.sinkBasin(9, 3), 99, 15); // бортики — колонки 99 и 107, дно — строка 14 (y = 224)
-  m.decor((p) => K.valve(p, 100 * TILE, 14 * TILE));
-  m.zone('trigger', 100 * TILE, 12 * TILE, TILE, 2 * TILE);
-  m.zone('flood', 100 * TILE, 6 * TILE, 7 * TILE, 8 * TILE);
-  m.pointPx('floater', 103 * TILE + 8, 14 * TILE);
-  m.solid(108, 110, 12, 14); // за раковиной — тумба
-  m.solid(107, 110, 7, 7); // высокий уступ с выходом (над бортиком)
-  m.paint((p) => {
-    p.rect(108 * TILE, 12 * TILE, 3 * TILE, 3 * TILE, 0x7c7c7c);
-    p.rect(107 * TILE, 7 * TILE, 4 * TILE, TILE, 0x7c7c7c);
-    p.hline(107 * TILE, 7 * TILE, 4 * TILE, 0xfcfcfc);
-  });
-  K.placeExitDoor(m, 109, 7);
-  for (const r of [9, 11]) {
-    tc(101, r);
-    tc(105, r);
+  // ——— Экран 6 (96–111): внутри огромной мойки ———
+  // Герои размером с бурундука: весь экран — внутренность мойки. Через левый борт (y = 96)
+  // спускаются на дно. На дне — вентиль и молочник; вентиль пускает воду из крана, мойка
+  // наполняется, молочник всплывает. Выход — переливное отверстие в правом борту на уступе
+  // (y = 128): со дна и с борта не достать, только с всплывшего молочника. Упал в воду — минус жизнь.
+  const RIM = 6; // верх борта, y = 96
+  const BOTTOM = 14; // дно, y = 224
+  m.paint((p) => K.sinkInterior(p, 97 * TILE, 0, 14 * TILE, 15 * TILE, BOTTOM * TILE));
+  m.decor(
+    (p) => {
+      K.sinkWall(p, 96 * TILE, RIM * TILE, TILE, (15 - RIM) * TILE);
+      K.sinkWall(p, 111 * TILE, 0, TILE, 15 * TILE);
+    },
+    94 * TILE,
+    112 * TILE,
+  );
+  m.solid(96, 96, RIM, 14); // левый борт
+  m.solid(111, 111, 0, 14); // правый борт
+  m.solid(97, 110, BOTTOM, BOTTOM); // дно
+  // Кран и струя (струю рисует игра, пока вода прибывает).
+  let spout = { x: 0, y: 0 };
+  m.decor(
+    (p) => {
+      spout = K.faucet(p, 99 * TILE, TILE);
+    },
+    96 * TILE,
+    104 * TILE,
+  );
+  m.zone('stream', spout.x, spout.y, 4, 4);
+  // Вентиль на дне — у места, куда спускаются с борта; молочник лежит рядом на дне.
+  m.decor((p) => K.valve(p, 98 * TILE, BOTTOM * TILE), 97 * TILE, 100 * TILE);
+  m.zone('trigger', 98 * TILE, (BOTTOM - 2) * TILE, TILE, 2 * TILE);
+  // Вода — до y = 144: чуть ниже уступа с выходом (y = 128), уступ остаётся сухим.
+  const WATER_TOP = 9;
+  m.zone('flood', 97 * TILE, WATER_TOP * TILE, 14 * TILE, (BOTTOM - WATER_TOP) * TILE);
+  m.pointPx('floater', 105 * TILE, BOTTOM * TILE); // ближе к уступу с выходом
+  // Уступ у переливного отверстия и выход.
+  m.prop(K.shelf(4, 'plates'), 107, 9); // колонки 107–110, верх y = 128
+  K.placeExitDoor(m, 109, 8);
+  for (const r of [10, 12]) {
+    tc(100, r);
+    tc(106, r);
   }
 
   m.segment('right', 0, 0, 112 * TILE, 15 * TILE);

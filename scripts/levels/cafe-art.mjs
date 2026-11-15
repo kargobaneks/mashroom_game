@@ -324,6 +324,23 @@ export const step = {
   },
 };
 
+/** Низкая тумба у стены арены: твёрдая, высотой 1 тайл. */
+export function counterBlock(wTiles) {
+  return {
+    w: wTiles,
+    h: 1,
+    draw(pix, x, y) {
+      const w = wTiles * T;
+      pix.rect(x, y, w, T, C.olive);
+      pix.hline(x, y, w, C.gold);
+      for (let k = x + 4; k < x + w - 4; k += 16) pix.box(k, y + 4, 12, 10, C.tan, C.darkOlive);
+    },
+    collide(m, col, top) {
+      m.solid(col, col + wTiles - 1, top, top);
+    },
+  };
+}
+
 /** Молочная пена у пола арены (декор поверх пола). */
 export function milkFoam(pix, x, y, w, h) {
   pix.fillPattern(x, y, w, h, (px, py) => {

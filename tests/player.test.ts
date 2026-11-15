@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { ENEMIES } from '../src/config/enemies';
 import { PLAYER_PHYSICS as P, THROW_PHYSICS } from '../src/config/physics';
+import { Item } from '../src/sim/Item';
 import { makeWorld, run, tap } from './helpers';
 
 const FLOOR = 208;
@@ -92,6 +93,91 @@ describe('Player: movement', () => {
     run(w, 1, ['down', 'jump']);
     run(w, 30);
     expect(p.y + p.h).toBe(FLOOR);
+  });
+});
+
+describe('Player: dropping through thin platforms', () => {
+  const onShelf = () => {
+    const grid = [
+      ...Array(10).fill('#..............#'),
+      '#.....====.....#',
+      '#..............#',
+      '#..............#',
+      '################',
+      '################',
+    ];
+    const w = makeWorld({ grid, start: { x: 104, y: 150 } });
+    run(w, 30);
+    return w;
+  };
+
+  for (const combo of [
+    ['down', 'jump'],
+    ['down', 'action'],
+  ] as const) {
+    it(`${combo.join(' + ')} drops through (empty hands)`, () => {
+      const w = onShelf();
+      const p = w.players[0]!;
+      expect(p.y + p.h).toBe(160);
+      run(w, 1, ['down']);
+      tap(w, [...combo]);
+      run(w, 30);
+      expect(p.y + p.h).toBe(208);
+    });
+  }
+
+  it('pressing both at the same moment works too', () => {
+    const w = onShelf();
+    const p = w.players[0]!;
+    tap(w, ['down', 'jump']);
+    run(w, 30);
+    expect(p.y + p.h).toBe(208);
+  });
+
+  it('with a box in hands: ↓ + jump drops through, and from hiding too', () => {
+    for (const viaHide of [false, true]) {
+      const w = onShelf();
+      const p = w.players[0]!;
+      const box = new Item('box', { x: 90, y: 160 });
+      w.items.push(box);
+      box.state = 'carried';
+      box.owner = p;
+      p.carrying = { kind: 'item', item: box };
+      run(w, 2);
+      if (viaHide) {
+        tap(w, ['down']);
+        expect(p.state).toBe('hidden');
+        run(w, 2, ['down']);
+      }
+      tap(w, ['down', 'jump']);
+      run(w, 30);
+      expect(p.y + p.h, viaHide ? 'from hiding' : 'directly').toBe(208);
+      expect(p.carrying?.kind).toBe('item');
+    }
+  });
+
+  it('jumps normally with a box in hands', () => {
+    const w = makeWorld({
+      start: { x: 40, y: 208 },
+      spawns: [{ type: 'item', kind: 'box', x: 56, y: 208 }],
+    });
+    const p = w.players[0]!;
+    run(w, 20, ['right']);
+    tap(w, ['right', 'action']);
+    run(w, 2);
+    tap(w, ['jump']);
+    expect(p.vy).toBeLessThan(0);
+    expect(p.carrying?.kind).toBe('item');
+  });
+
+  it('does not drop through solid ground', () => {
+    const w = makeWorld();
+    const p = w.players[0]!;
+    run(w, 5);
+    run(w, 1, ['down']);
+    tap(w, ['down', 'jump']);
+    run(w, 30);
+    expect(p.y + p.h).toBe(208);
   });
 });
 

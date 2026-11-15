@@ -16,7 +16,7 @@ export interface Segment extends Rect {
 /** Точка появления сущности. Координата — низ-центр (ноги). */
 export interface SpawnPoint extends Point {
   readonly id: number;
-  readonly type: 'enemy' | 'item' | 'pickup' | 'bossPoint' | 'lift' | 'floater';
+  readonly type: 'enemy' | 'item' | 'pickup' | 'bossPoint' | 'lift' | 'floater' | 'ammo';
   readonly kind: string;
   /** Для ящика: что под ним спрятано (появляется, когда ящик поднимают). */
   readonly contains?: string;
@@ -92,6 +92,7 @@ const SPAWN_TYPES: readonly SpawnPoint['type'][] = [
   'bossPoint',
   'lift',
   'floater',
+  'ammo',
 ];
 
 /** Разобрать карту Tiled: слои solid / oneway / hazard, objects и camera. */

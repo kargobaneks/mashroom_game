@@ -176,7 +176,18 @@ export class Player implements Body {
     const heavy = item?.heavy ?? false;
 
     // Вниз на земле: с предметом — спрятаться, без — присесть.
-    if (this.onGround && input.pressed('down') && item?.hideable) {
+    // Вниз + прыжок с предметом на тонкой платформе — спрыгнуть (с ящиком в руках тоже).
+    let droppedWithItem = false;
+    if (
+      this.onGround &&
+      item &&
+      input.down('down') &&
+      input.pressed('jump') &&
+      this.standsOnOneway(world)
+    ) {
+      this.dropThroughTimer = P.dropThroughFrames;
+      droppedWithItem = true;
+    } else if (this.onGround && input.pressed('down') && !input.pressed('jump') && item?.hideable) {
       this.enterHide(item);
       return;
     }
@@ -193,17 +204,14 @@ export class Player implements Body {
     // Прыжок, спрыгивание с тонкой платформы.
     if (this.onGround) this.coyoteTimer = P.coyoteFrames;
     else if (this.coyoteTimer > 0) this.coyoteTimer--;
-    if (input.pressed('jump')) this.jumpBufferTimer = P.jumpBufferFrames + 1;
+    if (input.pressed('jump') && !droppedWithItem) this.jumpBufferTimer = P.jumpBufferFrames + 1;
     else if (this.jumpBufferTimer > 0) this.jumpBufferTimer--;
 
     const canJump = this.onGround || this.coyoteTimer > 0;
     if (this.jumpBufferTimer > 0 && canJump) {
       this.jumpBufferTimer = 0;
       if (this.crouching) {
-        if (this.standsOnOneway(world)) {
-          this.dropThroughTimer = P.dropThroughFrames;
-          this.setCrouch(false, world);
-        }
+        this.tryDropThrough(world);
       } else {
         this.vy = heavy ? P.jumpVelocityHeavyItem : P.jumpVelocity;
         this.jumping = true;
@@ -223,6 +231,7 @@ export class Player implements Body {
     if (input.pressed('action')) {
       if (this.carrying) this.throwCarried(this.throwDirection(input), world);
       else if (input.down('up')) world.registerDuet(this);
+      else if (this.crouching) this.tryDropThrough(world);
       else if (input.down(this.facing > 0 ? 'right' : 'left')) this.tryPickUp(world);
     }
 
@@ -286,6 +295,16 @@ export class Player implements Body {
     this.h = P.hitboxStanding.height;
     this.y = bottom - this.h;
     this.crouching = false;
+  }
+
+  /**
+   * Спрыгнуть с тонкой платформы. Основная комбинация по ТЗ — ↓ + прыжок; ↓ + действие с пустыми
+   * руками тоже работает (как ↓ + B в оригинале; с предметом это бросок по земле).
+   */
+  private tryDropThrough(world: World): void {
+    if (!this.standsOnOneway(world)) return;
+    this.dropThroughTimer = P.dropThroughFrames;
+    this.setCrouch(false, world);
   }
 
   private standsOnOneway(world: World): boolean {
@@ -409,6 +428,10 @@ export class Player implements Body {
     this.state = 'carry';
     // Действие из укрытия — бросок по земле.
     if (input.pressed('action')) this.throwCarried('ground', world);
+    // Прыжок из укрытия на тонкой платформе (↓ ещё зажата) — спрыгнуть вниз вместе с ящиком.
+    else if (input.pressed('jump') && input.down('down') && this.standsOnOneway(world)) {
+      this.dropThroughTimer = P.dropThroughFrames;
+    }
   }
 
   // ——— урон ———

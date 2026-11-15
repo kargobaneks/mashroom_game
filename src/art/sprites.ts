@@ -12,11 +12,6 @@ export interface SpriteDef {
   readonly frames: Readonly<Record<string, readonly string[]>>;
 }
 
-/** Симметричный кадр: левые половины строк + их зеркало. */
-function mirror(lefts: readonly string[]): string[] {
-  return lefts.map((l) => l + [...l].reverse().join(''));
-}
-
 /** Заменить пиксели: [x, y, символ]. */
 function patch(
   rows: readonly string[],
@@ -257,17 +252,19 @@ const latte: SpriteDef = {
   palette: { L: 0xfcd8a8, M: 0xac7c00 },
   frames: { idle: DROP },
 };
+/** Струя латте босса: тёмная кофейная капля с чёрной обводкой — видна и на белой пене. */
 const stream: SpriteDef = {
   w: 6,
   h: 6,
-  palette: { L: 0xfcfcfc, M: 0xfcd8a8 },
-  frames: { idle: DROP },
+  palette: { D: 0x000000, L: 0xac7c00, M: 0x881400 },
+  frames: { idle: ['.DDDD.', 'DLLLLD', 'DLMMLD', 'DLMMLD', 'DLLLLD', '.DDDD.'] },
 };
+/** Пейнтбольный шарик (вторая фаза): яркий, с чёрной обводкой. */
 const paintball: SpriteDef = {
   w: 5,
   h: 5,
-  palette: { M: 0xf878f8, L: 0xfcfcfc },
-  frames: { idle: ['.MMM.', 'MLMMM', 'MMMMM', 'MMMMM', '.MMM.'] },
+  palette: { D: 0x000000, M: 0xd800cc, W: 0xfcfcfc },
+  frames: { idle: ['.DDD.', 'DWMMD', 'DMMMD', 'DMMMD', '.DDD.'] },
 };
 
 // ——— Босс 1: Агранович ———
@@ -277,90 +274,137 @@ const paintball: SpriteDef = {
  * круглые очки; чёрное приталенное платье с рюшами на воротнике и лентой-завязкой.
  * Перед выстрелом поправляет очки рукой — это её «знак» атаки. Образ утверждает сама Екатерина (ТЗ).
  */
-const AGRANOVICH_BASE = mirror([
-  '................',
-  '..............HH',
-  '.............HHH',
-  '..............HH',
-  '...........HHHHH',
-  '..........HHHHHH',
-  '.........HHHHHHH',
-  '.........HHHHHHS',
-  '.........HHHSSSS',
-  '........HHHSSSSS',
-  '........HHSSSSSS',
-  '........HHSDDDDD',
-  '........HHSDDSDS',
-  '........HHSDSSDS',
-  '........HHSSDDSS',
-  '........HHSSSSSS',
-  '.........HSSSSSD',
-  '...........SSSSS',
-  '............DDDD',
-  '...........DDDDS',
+/** Симметричный кадр: левые половины строк + их зеркало. */
+function mirror(lefts: readonly string[]): string[] {
+  return lefts.map((l) => l + [...l].reverse().join(''));
+}
+
+/**
+ * Агранович: молодая стройная девушка, анфас. Взрослые пропорции (голова — около трети роста),
+ * узкая талия, юбка шире книзу. Узнаваемость: пучок, тонкие круглые очки, чёрное платье с рюшами
+ * на воротнике и лентой. Позы с портрета: рука у пучка (в полёте), поправляет очки (знак перед
+ * выстрелом). E — глаз (открыт — D, зажмурилась — S). Образ утверждает сама Екатерина (ТЗ).
+ */
+const AGRANOVICH_RAW = mirror([
+  '..............DD',
+  '.............DHH',
+  '.............DHH',
+  '...........DDDDD',
+  '..........DHHHHH',
+  '.........DHHHHHH',
+  '.........DHHHHHS',
+  '.........DHHHSSS',
+  '.........DHHSSSS',
+  '.........DHSDDSS',
+  '.........DHDSEDD',
+  '.........DHSDDSS',
+  '.........DHSSSSS',
+  '.........DHSSSSD',
+  '..........DSSSSS',
+  '...........DDSSS',
+  '.............DSS',
+  '...........DDDDD',
+  '...........DDDSS',
   '..........DDDDSD',
-  '.........DDDDDSD',
+  '..........DDDDDD',
+  '.........DDDDDDD',
   '.........SDDDDDD',
   '.........SDDDDDD',
   '..........SDDDDD',
-  '...........DDDDD',
   '..........DDDDDD',
   '.........DDDDDDD',
-  '.........DDDDDDD',
-  '.............SS.',
-  '.............SS.',
-  '.............DD.',
+  '........DDDDDDDD',
+  '........DDDDDDDD',
+  '............SS..',
+  '............SS..',
+  '...........DDD..',
 ]);
+const eyes = (rows: readonly string[], c: string) => rows.map((r) => r.replace(/E/g, c));
+/** Руки опущены вдоль тела. */
+const AGRANOVICH_BASE = eyes(AGRANOVICH_RAW, 'D');
 
-/** Глаза закрыты: зрачков нет, вместо них — линия ресниц. */
-const AGRANOVICH_EYES_CLOSED = patch(AGRANOVICH_BASE, [
-  [12, 12, 'S'],
-  [19, 12, 'S'],
-  [12, 13, 'D'],
-  [13, 13, 'D'],
-  [18, 13, 'D'],
-  [19, 13, 'D'],
-]);
-
-/** Поза с портрета: левая рука закинута за голову, кисть у пучка. */
+/** Поза с портрета: левая рука поднята, локоть в сторону, кисть в волосах у виска. */
 const AGRANOVICH_HAND_IN_HAIR = patch(AGRANOVICH_BASE, [
-  // Опущенная левая рука убрана.
+  // Опущенная левая рука убрана (рукав у плеча остаётся).
   [9, 22, '.'],
   [9, 23, '.'],
-  [10, 24, '.'],
-  // Рукав у плеча, плечо вверх снаружи причёски, локоть над головой, кисть на пучке.
-  [8, 20, 'D'],
-  [9, 20, 'D'],
-  [8, 19, 'D'],
-  ...[10, 11, 12, 13, 14, 15, 16, 17, 18].map((y) => [7, y, 'S'] as const),
-  [7, 9, 'S'],
-  [7, 8, 'S'],
-  [8, 7, 'S'],
-  [8, 6, 'S'],
-  [9, 5, 'S'],
-  [10, 4, 'S'],
-  [11, 4, 'S'],
-  [12, 3, 'S'],
+  [10, 24, 'D'],
+  [9, 21, 'D'],
+  // Плечо — вниз-наружу к локтю, предплечье — вверх к виску.
+  [8, 20, 'S'],
+  [7, 20, 'D'],
+  [8, 19, 'S'],
+  [7, 19, 'D'],
+  [7, 18, 'S'],
+  [6, 18, 'D'],
+  [7, 17, 'S'],
+  [6, 17, 'D'],
+  [6, 16, 'S'],
+  [5, 16, 'D'],
+  [6, 15, 'S'],
+  [5, 15, 'D'],
+  [5, 14, 'S'],
+  [4, 14, 'D'],
+  [5, 13, 'S'],
+  [4, 13, 'D'],
+  [6, 12, 'S'],
+  [5, 12, 'D'],
+  [7, 11, 'S'],
+  [6, 11, 'D'],
+  [8, 10, 'S'],
+  [7, 10, 'D'],
+  [9, 9, 'S'],
+  [9, 10, 'S'],
+  [8, 9, 'D'],
+  [9, 8, 'D'],
 ]);
 
-/** Перед выстрелом: вторая рука поправляет очки — как на фото. */
+/** Перед выстрелом: правая рука поправляет очки (зеркально — кисть у правого стекла). */
 const AGRANOVICH_AIM = patch(AGRANOVICH_HAND_IN_HAIR, [
-  // Опущенная правая рука убрана.
   [22, 22, '.'],
   [22, 23, '.'],
-  [21, 24, '.'],
-  // Кисть у края очков.
-  [21, 11, 'S'],
-  [22, 11, 'S'],
-  [23, 11, 'S'],
-  [22, 12, 'S'],
-  [23, 12, 'S'],
-  // Предплечье вниз-наружу, локоть, короткий рукав у плеча.
-  ...[13, 14, 15, 16, 17, 18].map((y) => [24, y, 'S'] as const),
-  [23, 19, 'D'],
+  [21, 24, 'D'],
+  [22, 21, 'D'],
+  [23, 20, 'S'],
+  [24, 20, 'D'],
+  [23, 19, 'S'],
   [24, 19, 'D'],
-  [22, 20, 'D'],
-  [23, 20, 'D'],
+  [24, 18, 'S'],
+  [25, 18, 'D'],
+  [24, 17, 'S'],
+  [25, 17, 'D'],
+  [25, 16, 'S'],
+  [26, 16, 'D'],
+  [25, 15, 'S'],
+  [26, 15, 'D'],
+  [26, 14, 'S'],
+  [27, 14, 'D'],
+  [26, 13, 'S'],
+  [27, 13, 'D'],
+  [25, 12, 'S'],
+  [26, 12, 'D'],
+  [24, 11, 'S'],
+  [25, 11, 'D'],
+  [23, 10, 'S'],
+  [24, 10, 'D'],
+  [22, 9, 'S'],
+  [22, 10, 'S'],
+  [21, 10, 'S'],
+  [23, 9, 'D'],
+  [22, 8, 'D'],
+]);
+
+/** Зажмурилась (попадание). */
+const AGRANOVICH_EYES_CLOSED = eyes(AGRANOVICH_RAW, 'S');
+
+/** Пришла в себя после боя: руки опущены, улыбка. */
+const AGRANOVICH_FREED = patch(AGRANOVICH_BASE, [
+  [15, 13, 'S'],
+  [16, 13, 'S'],
+  [14, 13, 'D'],
+  [17, 13, 'D'],
+  [15, 14, 'D'],
+  [16, 14, 'D'],
 ]);
 
 const agranovich: SpriteDef = {
@@ -371,6 +415,7 @@ const agranovich: SpriteDef = {
     idle: AGRANOVICH_HAND_IN_HAIR,
     aim: AGRANOVICH_AIM,
     hit: AGRANOVICH_EYES_CLOSED,
+    freed: AGRANOVICH_FREED,
   },
 };
 
@@ -397,23 +442,23 @@ const pump: SpriteDef = {
 
 /** Молочник-кораблик: всплывает в раковине. */
 const jug: SpriteDef = {
-  w: 32,
+  w: 48,
   h: 12,
   palette: { D: 0x0058f8, W: 0xfcfcfc, S: 0xbcbcbc },
   frames: {
     idle: [
-      'DD............................DD',
-      'DWD..........................DWD',
-      '.DWDDDDDDDDDDDDDDDDDDDDDDDDDDWD.',
-      '.DWWWWWWWWWWWWWWWWWWWWWWWWWWWWD.',
-      '..DWWWWWWWWWWWWWWWWWWWWWWWWWWD..',
-      '..DWWWDDDWWWWWWWWWWWWWWWWWWWWD..',
-      '..DWWWDWDWWWWWWWWWWWWWWWWWWWWD..',
-      '...DWWDDDWWWWWWWWWWWWWWWWWWWD...',
-      '...DSWWWWWWWWWWWWWWWWWWWWWWSD...',
-      '....DSSWWWWWWWWWWWWWWWWWWSSD....',
-      '.....DDSSSSSSSSSSSSSSSSSSDD.....',
-      '.......DDDDDDDDDDDDDDDDDD.......',
+      'DD............................................DD',
+      'DWD..........................................DWD',
+      '.DWDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDWD.',
+      '.DWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWD.',
+      '..DWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWD..',
+      '..DWWWDDDWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWD..',
+      '..DWWWDWDWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWD..',
+      '...DWWDDDWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWD...',
+      '...DSWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWSD...',
+      '....DSSWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWSSD....',
+      '.....DDSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSDD.....',
+      '.......DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD.......',
     ],
   },
 };

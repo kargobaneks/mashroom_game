@@ -94,10 +94,12 @@ describe('level 1 data: every part', () => {
     expect(sink.spawns.some((s) => s.type === 'floater')).toBe(true);
   });
 
-  it('basement arena has 4 hover points, ammo and foam', () => {
+  it('basement arena has 6 hover points on 3 heights, ammo and foam', () => {
     const base = parts[3]!.level;
     const arena = base.segments.find((s) => s.boss === 'agranovich')!;
-    expect(base.spawns.filter((s) => s.type === 'bossPoint' && contains(arena, s))).toHaveLength(4);
+    const points = base.spawns.filter((s) => s.type === 'bossPoint' && contains(arena, s));
+    expect(points).toHaveLength(6);
+    expect(new Set(points.map((p) => p.y)).size).toBe(3);
     expect(
       base.spawns.filter((s) => s.type === 'item' && contains(arena, s)).length,
     ).toBeGreaterThan(0);

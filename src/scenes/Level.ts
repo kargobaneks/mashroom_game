@@ -28,7 +28,9 @@ type Mode =
   | { kind: 'dialogue'; box: DialogueBox; then: () => void }
   | { kind: 'paused'; menu: Menu; objects: Phaser.GameObjects.GameObject[] }
   | { kind: 'levelSelect'; menu: Menu; objects: Phaser.GameObjects.GameObject[] }
-  | { kind: 'wait'; frames: number; then: () => void };
+  | { kind: 'wait'; frames: number; then: () => void }
+  /** Мир продолжает идти, пока не выполнится условие (босс опускается на пол). */
+  | { kind: 'watch'; until: () => boolean; then: () => void };
 
 /** Данные сцены: уровень, часть (0 — с начала), перенос игроков из прошлой части. */
 interface LevelSceneData {
@@ -112,6 +114,17 @@ export class Level extends BaseScene<LevelSceneData> {
       case 'wait':
         if (--this.mode.frames <= 0) this.mode.then();
         return;
+      case 'watch': {
+        const w = this.world;
+        if (w) {
+          w.stepCinematic();
+          this.syncCamera();
+          this.view?.sync();
+          this.hud?.update();
+        }
+        if (this.mode.until()) this.mode.then();
+        return;
+      }
       case 'play':
         break;
     }
@@ -164,9 +177,11 @@ export class Level extends BaseScene<LevelSceneData> {
         stopMusic(this);
         playSfx(this, 'bossDefeated');
         const boss = world.boss;
+        // Гость приведён в чувство: заглушка слетает облаком, он опускается на пол и говорит.
+        if (boss) this.view?.burstFrom(boss);
         this.mode = {
-          kind: 'wait',
-          frames: AFTER_EVENT_FRAMES,
+          kind: 'watch',
+          until: () => boss?.landed ?? true,
           then: () => {
             this.mode = {
               kind: 'dialogue',

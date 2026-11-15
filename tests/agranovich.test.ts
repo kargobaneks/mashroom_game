@@ -86,14 +86,44 @@ describe('Agranovich (boss 1)', () => {
     expect(untilState(b, w, 'shoot')).toBe(C.hoverFrames);
   });
 
-  it('fires 3 streams that never go upward, even at a target above her', () => {
-    const w = new FakeWorld({ x: 64, y: 0 });
+  it('fires a fan of 3 latte streams towards the player, none going up', () => {
+    const w = new FakeWorld({ x: 0, y: 260 });
     const b = new Agranovich(POINTS);
     b.begin(w);
     untilState(b, w, 'shoot');
     b.update(w);
     expect(w.shots).toHaveLength(C.streams.count);
-    for (const s of w.shots) expect(s.vy).toBeGreaterThanOrEqual(0);
+    for (const s of w.shots) {
+      expect(s.vy).toBeGreaterThanOrEqual(0);
+      expect(s.vx).toBeLessThan(0);
+    }
+    expect(new Set(w.shots.map((s) => s.vy.toFixed(3))).size).toBe(C.streams.count);
+  });
+
+  it('a player above her is safe: the fan flattens to horizontal', () => {
+    const w = new FakeWorld({ x: 0, y: 0 });
+    const b = new Agranovich(POINTS);
+    b.begin(w);
+    untilState(b, w, 'shoot');
+    b.update(w);
+    for (const s of w.shots) expect(s.vy).toBe(0);
+  });
+
+  it('flies between its stops, never staying at the same one', () => {
+    const w = new FakeWorld();
+    const b = new Agranovich(POINTS);
+    b.begin(w);
+    const seen = new Set<string>();
+    let last = '';
+    for (let k = 0; k < 12; k++) {
+      untilState(b, w, 'hover');
+      const at = `${b.x},${b.y}`;
+      expect(at).not.toBe(last);
+      last = at;
+      seen.add(at);
+      untilState(b, w, 'fly');
+    }
+    expect(seen.size).toBe(POINTS.length);
   });
 
   it('can only be hit while standing; hit makes her invulnerable for 40 frames', () => {
@@ -124,9 +154,35 @@ describe('Agranovich (boss 1)', () => {
     expect(untilState(b, w, 'shoot')).toBe(
       Math.round(C.hoverFrames * BOSS_RULES.halfHpTimingFactor),
     );
-    b.update(w);
+    // Очередь: шарики по одному с интервалом, каждый — в текущее положение игрока.
+    const frames: number[] = [];
+    for (let f = 0; f < 200 && b.state === 'shoot'; f++) {
+      const before = w.shots.length;
+      b.update(w);
+      if (w.shots.length > before) frames.push(f);
+      if (frames.length === 1) w.targetPoint = { x: 400, y: 300 }; // игрок перебежал
+    }
     expect(w.shots).toHaveLength(C.paintballs.count);
     expect(w.shots.every((s) => s.kind === 'paintball' && s.vy >= 0)).toBe(true);
+    expect(frames[1]! - frames[0]!).toBe(C.paintballs.intervalFrames);
+    // Вся очередь — в точку начала: перебежавший игрок уходит от остальных шариков.
+    for (const s of w.shots) expect(s.vx).toBeCloseTo(w.shots[0]!.vx);
+  });
+
+  it('after the last hit she comes to her senses: floats down to the floor and stays', () => {
+    const w = new FakeWorld();
+    const b = new Agranovich(POINTS);
+    b.begin(w);
+    for (let i = 0; i < C.hp; i++) hitWhenStanding(b, w);
+    expect(b.defeated).toBe(true);
+    expect(b.landed).toBe(false);
+    for (let i = 0; i < 400 && !b.landed; i++) b.update(w);
+    expect(b.landed).toBe(true);
+    expect(b.y + b.h).toBe(b.restY);
+    const y = b.y;
+    for (let i = 0; i < 60; i++) b.update(w);
+    expect(b.y).toBe(y);
+    expect(b.hit(w)).toBe(false);
   });
 
   it('is defeated after 6 hits', () => {
@@ -201,8 +257,9 @@ describe('Agranovich in the world', () => {
     w.resume();
     const b = w.boss!;
     const arena = w.camera.segment;
-    b.x = arena.x + 100;
-    b.y = arena.y + 100;
+    // В просвете по центру над пеной — над ней ничего нет, коробка падает прямо на неё.
+    b.x = arena.x + 112;
+    b.y = arena.y + 130;
     b.state = 'hover';
     b.timer = 1000;
     b.invuln = 0;

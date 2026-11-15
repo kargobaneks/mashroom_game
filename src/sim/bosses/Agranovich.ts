@@ -35,6 +35,10 @@ export class Agranovich implements Rect {
   timer = 0;
   invuln = 0;
   phase: 1 | 2 = 1;
+  /** Сколько шариков осталось в очереди (вторая фаза). */
+  volleyLeft = 0;
+  /** Куда летит вся очередь: положение игрока в её начале. */
+  private volleyTarget: Point | null = null;
   private pointIndex = 0;
 
   /** points — центры точек зависания, в координатах уровня. */
@@ -46,6 +50,16 @@ export class Agranovich implements Rect {
   }
 
   readonly name = 'agranovich';
+
+  /** Где она встанет, когда придёт в себя: на уровне пола под самой низкой точкой. */
+  get restY(): number {
+    return Math.max(...this.points.map((p) => p.y)) + C.freedRestBelowLowestPoint;
+  }
+
+  /** Стоит ли уже на полу после победы. */
+  get landed(): boolean {
+    return this.defeated && this.y >= this.restY - this.h;
+  }
 
   /** Бить можно, только когда стоит. */
   get vulnerable(): boolean {
@@ -104,8 +118,13 @@ export class Agranovich implements Rect {
     if (this.invuln > 0) this.invuln--;
     switch (this.state) {
       case 'intro':
-      case 'defeated':
         return;
+      case 'defeated': {
+        // Приведена в чувство: заглушка слетела, она плавно опускается на пол и остаётся с героями.
+        const restY = this.restY - this.h;
+        if (this.y < restY) this.y = Math.min(restY, this.y + C.freedDescendSpeed);
+        return;
+      }
       case 'fly': {
         const p = this.points[this.pointIndex]!;
         const dx = p.x - (this.x + this.w / 2);
@@ -124,12 +143,25 @@ export class Agranovich implements Rect {
         return;
       }
       case 'hover':
-        if (--this.timer <= 0) this.state = 'shoot';
+        if (--this.timer <= 0) {
+          this.state = 'shoot';
+          this.volleyLeft = C.paintballs.count;
+          this.timer = 0;
+          // Очередь целится туда, где игрок сейчас, — и больше не следит за ним.
+          this.volleyTarget = world.target(this);
+        }
         return;
       case 'shoot':
-        this.shoot(world);
-        this.state = 'recover';
-        this.timer = this.scaled(C.recoverFrames);
+        if (this.phase === 1) {
+          this.shootFan(world);
+          this.endShooting();
+        } else if (--this.timer <= 0) {
+          // Очередь: по шарику с интервалом, каждый — туда, где игрок сейчас.
+          this.shootAt(world, 'paintball', C.paintballs);
+          this.volleyLeft--;
+          this.timer = C.paintballs.intervalFrames;
+          if (this.volleyLeft <= 0) this.endShooting();
+        }
         return;
       case 'recover':
         if (--this.timer <= 0) this.flyToNext(world);
@@ -137,32 +169,73 @@ export class Agranovich implements Rect {
     }
   }
 
+  /** Следующая точка — любая другая из четырёх (ТЗ: «перелетает между 4 точками арены»). */
   private flyToNext(world: BossWorld): void {
     const n = this.points.length;
     this.pointIndex = (this.pointIndex + world.rng.int(1, n - 1)) % n;
     this.state = 'fly';
   }
 
-  /** Веер выстрелов в сторону игрока. Ни один снаряд не летит вверх. */
-  private shoot(world: BossWorld): void {
-    const cfg = this.phase === 1 ? C.streams : C.paintballs;
-    const kind = this.phase === 1 ? 'stream' : 'paintball';
+  /** Выстрел в сторону игрока. Ни один снаряд не летит вверх. */
+  private endShooting(): void {
+    this.state = 'recover';
+    this.timer = this.scaled(C.recoverFrames);
+  }
+
+  /** Направление на цель (по умолчанию — игрок); вверх не стреляет — такие летят горизонтально. */
+  private aim(
+    world: BossWorld,
+    offset = 0,
+    at: Point | null = world.target(this),
+  ): { vx: number; vy: number } {
     const ox = this.x + this.w / 2;
     const oy = this.y + this.h / 2;
-    const t = world.target(this);
-    const base = t ? Math.atan2(t.y - oy, t.x - ox) : Math.PI / 2;
-    const mid = (cfg.count - 1) / 2;
-    for (let i = 0; i < cfg.count; i++) {
-      const a = base + (i - mid) * cfg.spreadRad;
-      let vx = Math.cos(a);
-      let vy = Math.sin(a);
-      if (vy < 0) {
-        // Вверх не стреляет: такие снаряды летят горизонтально.
-        vy = 0;
-        vx = vx >= 0 ? 1 : -1;
-      }
-      world.spawn(new Projectile(kind, ox, oy, cfg.size, cfg.size, vx * cfg.speed, vy * cfg.speed));
+    const t = at;
+    const a = (t ? Math.atan2(t.y - oy, t.x - ox) : Math.PI / 2) + offset;
+    let vx = Math.cos(a);
+    let vy = Math.sin(a);
+    if (vy < 0) {
+      vy = 0;
+      vx = vx >= 0 ? 1 : -1;
     }
+    return { vx, vy };
+  }
+
+  /** Первая фаза: веер из трёх струй латте в сторону игрока. */
+  private shootFan(world: BossWorld): void {
+    const s = C.streams;
+    const mid = (s.count - 1) / 2;
+    for (let i = 0; i < s.count; i++) {
+      const d = this.aim(world, (i - mid) * s.spreadRad);
+      world.spawn(
+        new Projectile(
+          'stream',
+          this.x + this.w / 2,
+          this.y + this.h / 2,
+          s.size,
+          s.size,
+          d.vx * s.speed,
+          d.vy * s.speed,
+        ),
+      );
+    }
+    world.emit({ type: 'sfx', name: 'bossShoot' });
+  }
+
+  /** Один выстрел очереди — в точку, запомненную в начале очереди. */
+  private shootAt(world: BossWorld, kind: 'paintball', cfg: { speed: number; size: number }): void {
+    const d = this.aim(world, 0, this.volleyTarget);
+    world.spawn(
+      new Projectile(
+        kind,
+        this.x + this.w / 2,
+        this.y + this.h / 2,
+        cfg.size,
+        cfg.size,
+        d.vx * cfg.speed,
+        d.vy * cfg.speed,
+      ),
+    );
     world.emit({ type: 'sfx', name: 'bossShoot' });
   }
 }

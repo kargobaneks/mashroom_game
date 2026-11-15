@@ -12,7 +12,7 @@ export const MECHANISMS = {
   },
   /** Молочник-кораблик. */
   floater: {
-    width: 32,
+    width: 48,
     height: 12,
     /** Осадка: насколько корпус сидит в воде, px. */
     draft: 4,
