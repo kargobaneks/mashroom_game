@@ -2,7 +2,8 @@ import type { Facing, Point } from '../geom';
 import type { Body } from '../physics';
 import type { World } from '../World';
 
-export type EnemyKind = 'bot' | 'asterisk' | 'barista' | 'headline' | 'cable';
+export type EnemyKind =
+  'bot' | 'asterisk' | 'barista' | 'headline' | 'cable' | 'crab' | 'gull' | 'rigger';
 
 let nextEnemyId = 1;
 
@@ -34,6 +35,11 @@ export abstract class Enemy implements Body {
   /** Ранит ли касанием. */
   get harmful(): boolean {
     return this.alive && this.stun === 0;
+  }
+
+  /** Особый кадр спрайта (клешни вверх, пикирует…); null — обычная анимация. */
+  get pose(): string | null {
+    return null;
   }
 
   /** Что происходит при касании игрока. По умолчанию — удар. */

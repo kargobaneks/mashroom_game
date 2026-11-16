@@ -1,4 +1,4 @@
-import { CAMERA } from '../config/camera';
+import { CAMERA, RISING_ARENA } from '../config/camera';
 import { DISPLAY } from '../config/display';
 import type { Point, Rect } from './geom';
 import type { Segment } from './level';
@@ -78,7 +78,19 @@ export class Camera {
       }
       case 'lock':
         return null;
+      case 'rise':
+        // Платформы поднимаются: камера опускается сама, игроки её не двигают.
+        this.y += RISING_ARENA.speed;
+        return null;
     }
+  }
+
+  /** Арена rise: камера опустилась на период шахты — перенести её вверх. Возвращает сдвиг, px. */
+  wrapRise(): number {
+    const s = this.segment;
+    if (s.dir !== 'rise' || !s.wrap || this.y < s.y + s.wrap) return 0;
+    this.y -= s.wrap;
+    return -s.wrap;
   }
 
   private advance(): Segment | null {
@@ -87,12 +99,15 @@ export class Camera {
     return this.segment;
   }
 
-  /** Удержать тело в пределах экрана: по горизонтали всегда, сверху — кроме прокрутки вверх. */
+  /**
+   * Удержать тело в пределах экрана: по горизонтали всегда, сверху — кроме прокрутки вверх.
+   * На арене rise верх экрана сталкивает с поднявшейся платформы — герой падает ниже.
+   */
   clamp(b: Rect): void {
     if (b.x < this.x) b.x = this.x;
     if (b.x + b.w > this.x + this.w) b.x = this.x + this.w - b.w;
     const s = this.segment;
-    if ((s.dir === 'down' || s.dir === 'lock') && b.y < this.y) b.y = this.y;
+    if ((s.dir === 'down' || s.dir === 'lock' || s.dir === 'rise') && b.y < this.y) b.y = this.y;
   }
 
   /** Упал ли игрок в пропасть: ниже экрана (или ниже сегмента при прокрутке вниз). */

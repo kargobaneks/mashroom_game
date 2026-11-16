@@ -35,6 +35,8 @@ export class Item implements Body {
   ownerImmune = 0;
   /** Сколько пролетел по горизонтали с момента броска, px. */
   flown = 0;
+  /** Сброшен краном Бордачёва: пока его не бросил игрок, падая, босса не бьёт. */
+  fromCrane = false;
   /** Что спрятано под ящиком: появляется на его месте, когда ящик поднимают. */
   contents: PickupKind | null = null;
 
@@ -70,6 +72,7 @@ export class Item implements Body {
 
   launch(owner: Player, dir: ThrowDir, facing: Facing): void {
     this.state = 'thrown';
+    this.fromCrane = false;
     this.owner = owner;
     this.throwDir = dir;
     this.ownerImmune = THROW_PHYSICS.ownerImmuneFrames;

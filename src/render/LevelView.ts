@@ -3,7 +3,9 @@ import { HERO_SPRITE, heroPoseFor } from '../art/heroes';
 import { SPRITE_ANIM, spriteFrameName, type SpriteId } from '../art/sprites';
 import { PLAYER_PHYSICS } from '../config/physics';
 import type { Boss } from '../sim/World';
+import { Bordachev } from '../sim/bosses/Bordachev';
 import { Uralov } from '../sim/bosses/Uralov';
+import { Rigger } from '../sim/enemies/Rigger';
 import type { Enemy, EnemyKind } from '../sim/enemies';
 import type { Rect } from '../sim/geom';
 import type { TiledMap } from '../sim/level';
@@ -50,6 +52,12 @@ const WATER = {
   stream: 0x0058f8,
 } as const;
 
+/** Трос крана — серый, как блок крюка. Крюк и коробка под ним — по 16 px. */
+const CRANE_CABLE = 0x7c7c7c;
+const HOOK_SIZE = 16;
+/** Канат такелажника — пеньковый. */
+const ROPE_COLOR = 0xac7c00;
+
 /** Мигание раз в N кадров. */
 function blink(timer: number): boolean {
   return Math.floor(timer / PLAYER_PHYSICS.invulnerableBlinkFrames) % 2 === 0;
@@ -63,6 +71,9 @@ const ENEMY_FRAMES: Record<EnemyKind, readonly [string, string]> = {
   asterisk: ['spin1', 'spin2'],
   headline: ['fly1', 'fly2'],
   cable: ['roll1', 'roll2'],
+  crab: ['walk1', 'walk2'],
+  gull: ['fly1', 'fly2'],
+  rigger: ['idle', 'idle'],
 };
 
 function alt(frame: number, per: number, a: string, b: string): string {
@@ -101,6 +112,11 @@ export class LevelView {
     { body: Phaser.GameObjects.Rectangle; top: Phaser.GameObjects.Rectangle }
   >();
   private hitboxes = false;
+  /** Трос крана «принуждение к миру» (арена Бордачёва). */
+  private cable: Phaser.GameObjects.Rectangle | null = null;
+  private readonly ropes: Phaser.GameObjects.Rectangle[] = [];
+  /** Ключ спрайта коробки, которую несёт кран. */
+  private readonly craneCase = {};
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -199,8 +215,10 @@ export class LevelView {
     }
 
     for (const e of w.enemies) draw(e, this.enemyView(e, f));
+    this.syncRopes();
     for (const p of w.players) this.syncHero(p);
     if (w.boss) draw(w.boss, this.bossView(w.boss, f));
+    this.syncCrane(draw);
     for (const pr of w.projectiles)
       draw(pr, { id: pr.kind, frame: 'idle', rect: pr, depth: DEPTH.projectile });
     for (const l of w.mech.lifts)
@@ -239,6 +257,50 @@ export class LevelView {
         duration: BURST.ms,
         ease: 'Quad.easeOut',
         onComplete: () => dot.destroy(),
+      });
+    }
+  }
+
+  /** Канаты такелажников: от блока на мачте до люльки. */
+  private syncRopes(): void {
+    const riggers = this.world.enemies.filter((e): e is Rigger => e instanceof Rigger);
+    riggers.forEach((r, i) => {
+      let rope = this.ropes[i];
+      if (!rope) {
+        rope = this.scene.add.rectangle(0, 0, 1, 1, ROPE_COLOR).setOrigin(0).setDepth(DEPTH.enemy);
+        this.ropes.push(rope);
+      }
+      rope
+        .setVisible(true)
+        .setPosition(Math.round(r.x + r.w / 2 - 1), Math.round(r.ropeTop))
+        .setSize(2, Math.max(0, Math.round(r.y - r.ropeTop)));
+    });
+    for (let i = riggers.length; i < this.ropes.length; i++) this.ropes[i]!.setVisible(false);
+  }
+
+  /** Кран Бордачёва: трос с верха экрана, крюк (мигает, пока показывается у края), коробка. */
+  private syncCrane(draw: (key: object, v: SpriteView) => void): void {
+    const b = this.world.boss;
+    const c = b instanceof Bordachev ? b.crane : null;
+    this.cable ??= this.scene.add.rectangle(0, 0, 1, 1, CRANE_CABLE).setOrigin(0);
+    this.cable.setDepth(DEPTH.projectile).setVisible(c !== null);
+    if (!c) return;
+    const visible = c.phase === 'pass' || blink(c.timer * 2);
+    const top = this.world.camera.y;
+    this.cable
+      .setVisible(visible)
+      .setPosition(Math.round(c.x + c.w / 2 - 1), Math.round(top))
+      .setSize(2, Math.max(0, Math.round(c.y - top + 1)));
+    const flip = c.vx < 0;
+    const hookRect = { x: c.x, y: c.y, w: c.w, h: HOOK_SIZE };
+    draw(c, { id: 'hook', frame: 'idle', rect: hookRect, depth: DEPTH.projectile, flip, visible });
+    if (c.carrying) {
+      draw(this.craneCase, {
+        id: 'box',
+        frame: 'idle',
+        rect: { x: c.x, y: c.y + HOOK_SIZE, w: c.w, h: HOOK_SIZE },
+        depth: DEPTH.projectile,
+        visible,
       });
     }
   }
@@ -283,7 +345,7 @@ export class LevelView {
     const E = SPRITE_ANIM.enemyFramesPerPose;
     const frozen = e.stun > 0;
     const [a, b] = ENEMY_FRAMES[e.kind];
-    const frame = frozen ? a : alt(f, E, a, b);
+    const frame = e.pose ?? (frozen ? a : alt(f, E, a, b));
     return {
       id: e.kind,
       frame,
@@ -300,13 +362,19 @@ export class LevelView {
       ? 'freed'
       : b.invuln > 0
         ? 'hit'
-        : b instanceof Uralov
-          ? b.wingsDown
-            ? 'flap'
-            : 'idle'
-          : b.telegraphing
+        : b instanceof Bordachev
+          ? b.telegraphing
             ? 'aim'
-            : 'idle';
+            : b.airborne
+              ? 'jump'
+              : 'idle'
+          : b instanceof Uralov
+            ? b.wingsDown
+              ? 'flap'
+              : 'idle'
+            : b.telegraphing
+              ? 'aim'
+              : 'idle';
     const bob = b.flying
       ? Math.round(
           Math.sin((f / SPRITE_ANIM.bossBobPeriod) * Math.PI * 2) * SPRITE_ANIM.bossBobAmplitude,
@@ -314,7 +382,12 @@ export class LevelView {
       : 0;
     const target = this.world.target(b);
     // Уралов смотрит анфас — не отражаем (ухмылка и чуб остаются на своей стороне).
-    const flip = b instanceof Uralov ? false : target !== null && target.x < b.x + b.w / 2;
+    const flip =
+      b instanceof Uralov
+        ? false
+        : b instanceof Bordachev
+          ? b.facing < 0
+          : target !== null && target.x < b.x + b.w / 2;
     return {
       id: b.name,
       frame,

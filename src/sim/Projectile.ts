@@ -1,7 +1,7 @@
 import type { Rect } from './geom';
 import type { World } from './World';
 
-export type ProjectileKind = 'latte' | 'stream' | 'paintball' | 'headline';
+export type ProjectileKind = 'latte' | 'stream' | 'paintball' | 'headline' | 'globe' | 'nut';
 
 /** Снаряд врага или босса. Ранит игрока при касании, гаснет о стену или за экраном. */
 export class Projectile implements Rect {

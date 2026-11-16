@@ -4,6 +4,7 @@ import type { HeroId } from '../systems/Flow';
 import type { PlayerId } from '../systems/InputState';
 import { Agranovich } from './bosses/Agranovich';
 import type { BossWorld } from './bosses/Boss';
+import { Bordachev, type BordachevWorld, type Ledge } from './bosses/Bordachev';
 import { Uralov } from './bosses/Uralov';
 import { Camera } from './Camera';
 import { createEnemy, isEnemyKind, type Enemy } from './enemies';
@@ -49,13 +50,13 @@ const ZONE_GRAVITY: Readonly<Record<string, number>> = {
 /** Расстояние между игроками на старте, px. */
 const COOP_START_OFFSET = 16;
 
-export type Boss = Agranovich | Uralov;
+export type Boss = Agranovich | Uralov | Bordachev;
 
 /**
  * Мир уровня: вся игровая логика без Phaser. Шаг — 1/60 с. Сцена передаёт ввод,
  * рисует состояние и забирает события (звуки, вход в арену, победа, конец игры).
  */
-export class World implements BossWorld {
+export class World implements BossWorld, BordachevWorld {
   readonly grid: TileGrid;
   readonly camera: Camera;
   readonly rng: Rng;
@@ -109,6 +110,8 @@ export class World implements BossWorld {
         this.pickups.push(new Pickup(sp.kind, sp, sp.id));
       }
     }
+    // Часть уровня — сразу арена (арена Бордачёва): бой начинается с реплики.
+    if (this.camera.segment.boss) this.onSegmentEntered(this.camera.segment);
   }
 
   private spawnItem(sp: SpawnPoint): Item {
@@ -150,6 +153,8 @@ export class World implements BossWorld {
 
     const entered = this.camera.update(this.cameraBodies());
     if (entered) this.onSegmentEntered(entered);
+    const wrap = this.camera.wrapRise();
+    if (wrap !== 0) this.shiftAll(wrap);
     this.spawnEnemies();
     this.moveMechanisms();
 
@@ -157,6 +162,7 @@ export class World implements BossWorld {
       const input = inputs[p.id];
       if (input && !p.out) p.update(input, this);
     }
+    this.pushByCrane();
     this.syncCarried();
     this.afterPlayersMechanisms();
 
@@ -203,7 +209,91 @@ export class World implements BossWorld {
       return new Agranovich(points);
     }
     if (seg.boss === 'uralov') return new Uralov(seg, this.floorBelow(seg));
+    if (seg.boss === 'bordachev') {
+      const start = this.level.spawns.find((s) => s.type === 'bossPoint' && contains(seg, s));
+      return new Bordachev(this.ledgesIn(seg), start ?? { x: seg.x + seg.w / 2, y: seg.y + 160 });
+    }
     return null;
+  }
+
+  /** Платформы сегмента: верхние края рядов тонких (oneway) тайлов. */
+  private ledgesIn(seg: Rect): Ledge[] {
+    const T = this.grid.size;
+    const out: Ledge[] = [];
+    const tx0 = Math.floor(seg.x / T);
+    const tx1 = Math.ceil((seg.x + seg.w) / T);
+    for (let ty = Math.floor(seg.y / T); ty < Math.ceil((seg.y + seg.h) / T); ty++) {
+      let run = -1;
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const on = tx < tx1 && this.grid.isOneway(tx, ty);
+        if (on && run < 0) run = tx;
+        if (!on && run >= 0) {
+          out.push({ x: run * T, y: ty * T, w: (tx - run) * T });
+          run = -1;
+        }
+      }
+    }
+    return out;
+  }
+
+  // ——— арена, где всё поднимается (Бордачёв) ———
+
+  /** Шахта бесконечная: камера перенеслась вверх на период — переносим и весь мир. */
+  private shiftAll(dy: number): void {
+    for (const p of this.players) p.y += dy;
+    for (const it of this.items) it.y += dy;
+    for (const e of this.enemies) e.y += dy;
+    for (const pr of this.projectiles) pr.y += dy;
+    for (const pk of this.pickups) pk.y += dy;
+    if (this.boss instanceof Bordachev) this.boss.shift(dy);
+  }
+
+  get view(): Rect {
+    return this.camera.view;
+  }
+
+  targetFeet(from: Rect): Point | null {
+    const p = this.nearestPlayer(from);
+    return p ? { x: p.x + p.w / 2, y: p.y + p.h } : null;
+  }
+
+  heroRects(): Rect[] {
+    return this.players.filter((p) => p.active && p.state !== 'respawn');
+  }
+
+  dropAmmo(at: Point): void {
+    const box = new Item('box', at);
+    box.fromCrane = true;
+    this.items.push(box);
+  }
+
+  ammoInView(): number {
+    return this.items.filter((i) => i.state !== 'gone' && this.camera.sees(i, 0)).length;
+  }
+
+  /**
+   * Кран «принуждение к миру» сталкивает героев: кто попал под крюк, оказывается перед ним
+   * (укрытие в ящике не спасает — ТЗ). Перепрыгнуть крюк можно.
+   */
+  private pushByCrane(): void {
+    const c = this.boss instanceof Bordachev ? this.boss.crane : null;
+    if (!c || c.phase !== 'pass') return;
+    for (const p of this.players) {
+      if (!p.active || p.state === 'held' || p.state === 'respawn' || !overlaps(p, c)) continue;
+      p.x = c.vx > 0 ? c.x + c.w : c.x - p.w;
+      this.camera.clamp(p);
+    }
+  }
+
+  /** Где возрождаться: на арене rise — на платформе средней колонны в середине экрана. */
+  private respawnPoint(): Point {
+    const seg = this.camera.segment;
+    if (seg.dir !== 'rise') return seg.respawn;
+    const T = this.grid.size;
+    const tx = Math.floor((seg.x + seg.w / 2) / T);
+    for (let ty = Math.ceil((this.camera.y + 96) / T); ty < this.grid.rows; ty++)
+      if (this.grid.isOneway(tx, ty)) return { x: seg.x + seg.w / 2, y: ty * T };
+    return seg.respawn;
   }
 
   /** Пол арены: первая твёрдая строка под центром сегмента. */
@@ -261,6 +351,11 @@ export class World implements BossWorld {
   /** Возрождение в начале сегмента: камера, враги и предметы сегмента — как при первом проходе. */
   private resetSegment(): void {
     const seg = this.camera.segment;
+    // Арена rise не начинается заново: платформы и босс продолжают подниматься.
+    if (seg.dir === 'rise') {
+      this.projectiles = [];
+      return;
+    }
     this.camera.enter(this.camera.index);
     this.enemies = [];
     this.projectiles = [];
@@ -321,7 +416,7 @@ export class World implements BossWorld {
       p.startRespawn(partner.x + partner.w / 2, partner.y + partner.h);
     } else {
       this.resetSegment();
-      const r = this.camera.segment.respawn;
+      const r = this.respawnPoint();
       p.startRespawn(r.x, r.y);
     }
   }
@@ -490,8 +585,15 @@ export class World implements BossWorld {
   private updateBoss(boss: Boss): void {
     boss.update(this);
     // Арена помогает игроку: падающий сверху ящик тоже бьёт босса, если тот уязвим.
+    // Кроме коробок крана Бордачёва: иначе он получает удары «от арены» (отзыв пользователя).
     for (const it of this.items) {
-      if (it.state === 'falling' && it.vy > 0 && overlaps(it, boss) && boss.hit(this)) {
+      if (
+        it.state === 'falling' &&
+        !it.fromCrane &&
+        it.vy > 0 &&
+        overlaps(it, boss) &&
+        boss.hit(this)
+      ) {
         this.onBossHit();
         it.impact();
       }
@@ -518,8 +620,11 @@ export class World implements BossWorld {
     }
     // Боеприпасы не кончаются: нет предмета на арене — сверху падает коробка.
     const arena = this.camera.segment;
-    const hasAmmo = this.items.some((i) => i.state !== 'gone' && overlaps(i, arena));
-    if (hasAmmo || boss.state === 'intro') {
+    const hasAmmo = this.items.some(
+      (i) => i.state !== 'gone' && overlaps(i, arena) && this.camera.sees(i, 0),
+    );
+    // На арене rise боеприпасы приносит кран (ТЗ); коробка сверху уехала бы за экран сразу.
+    if (hasAmmo || boss.state === 'intro' || arena.dir === 'rise') {
       this.ammoTimer = 0;
     } else if (++this.ammoTimer >= BOSS_RULES.ammoDropFrames) {
       this.ammoTimer = 0;
@@ -614,6 +719,13 @@ export class World implements BossWorld {
 
   private cleanup(): void {
     const view = this.camera;
+    // Арена rise: то, что уехало за верх или упало ниже экрана, пропало.
+    if (view.segment.dir === 'rise') {
+      for (const it of this.items) {
+        if (it.state === 'carried' || it.state === 'hiding') continue;
+        if (it.y + it.h < view.y || it.y > view.y + view.h) it.state = 'gone';
+      }
+    }
     for (const e of this.enemies)
       if (e.alive && !view.sees(e, ENEMIES.despawnMargin)) e.alive = false;
     this.enemies = this.enemies.filter((e) => e.alive);
@@ -641,7 +753,7 @@ export class World implements BossWorld {
     const idx = this.level.segments.findIndex((s) => s.boss !== null);
     if (idx < 0 || this.boss) return;
     this.camera.enter(idx);
-    const r = this.camera.segment.respawn;
+    const r = this.respawnPoint();
     this.players.forEach((p, i) => {
       if (p.out) return;
       p.dropCarried();

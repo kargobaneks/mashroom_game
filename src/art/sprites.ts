@@ -686,6 +686,370 @@ const jug: SpriteDef = {
   },
 };
 
+// ——— Босс 3: Бордачёв ———
+
+/**
+ * Тимофей Бордачёв (по фото гостя): светлые волосы до ушей, длинная чёлка набок через лоб,
+ * круглое лицо, лёгкая полуулыбка; тёмный пиджак, светлая рубашка, тёмный галстук (горошек
+ * в 24 px не читается — без него). Взрослые пропорции, голова крупнее (шарж без унижающих деталей — ТЗ). Знак перед броском —
+ * заносит руку вверх. Y — волосы, S — лицо, руки и рубашка, D — контур, пиджак, галстук.
+ * Образ утверждает сам Тимофей (ТЗ).
+ */
+const BORDACHEV_HEAD = mirror([
+  '.........DDD',
+  '.......DDYYY',
+  '......DYYYYY',
+  '.....DYYYYYY',
+  '....DYYYYYYY',
+  '....DYYYYYYY',
+  '....DYYYYYYY',
+  '....DYYYYYYY',
+  '....DYYYYYYS',
+  '....DYYSSSSS',
+  '....DYSDDSSS',
+  '....DYSSDSSS',
+  '....DYSSDSSS',
+  '...DSYSSSSSS',
+  '...DSYSSSSSD',
+  '....DYSSSSSS',
+  '....DSSSSSSS',
+  '.....DSSSSDD',
+  '......DSSSSS',
+  '.......DDDDD',
+]);
+const BORDACHEV_TORSO = mirror([
+  '..........DS',
+  '.......DDSSS',
+  '....DDDDDSSD',
+  '..DDDDDDDSSD',
+  '.DDDDDDDDSSD',
+  '.DD.DDDDDDSD',
+  '.DD.DDDDDDSD',
+  '.DD.DDDDDDDD',
+  '.DD.DDDDDDDD',
+  '.DD.DDDDDDDD',
+  '.DD.DDDDDDDD',
+  '.SS.DDDDDDDD',
+  '.SS.DDDDDDDD',
+  '....DDDDDDDD',
+]);
+const BORDACHEV_LEGS = mirror([
+  '....DDDDDD..',
+  '....DDDDDD..',
+  '.....DDDDD..',
+  '.....DDDDD..',
+  '....DDDDDD..',
+  '....DDDDDD..',
+]);
+/** Чёлка набок: справа (от зрителя) она ниже и закрывает край лба. Полуулыбка. */
+const bordachevDetails = (rows: readonly string[]): string[] =>
+  patch(rows, [
+    [12, 8, 'Y'],
+    [13, 9, 'Y'],
+    [14, 9, 'Y'],
+    [15, 9, 'Y'],
+    [16, 9, 'Y'],
+    [17, 9, 'Y'],
+    [18, 9, 'Y'],
+    [17, 10, 'Y'],
+    [18, 10, 'Y'],
+    [16, 10, 'D'],
+    [15, 10, 'D'],
+    [14, 10, 'S'],
+    // Полуулыбка: правый угол рта приподнят.
+    [14, 16, 'D'],
+    [13, 17, 'S'],
+  ]);
+const BORDACHEV_BODY = bordachevDetails([...BORDACHEV_HEAD, ...BORDACHEV_TORSO, ...BORDACHEV_LEGS]);
+/** Правая рука (смотрит вправо) поднята над плечом — замах. */
+const BORDACHEV_AIM = patch(BORDACHEV_BODY, [
+  ...[25, 26, 27, 28, 29, 30, 31, 32].flatMap(
+    (y) =>
+      [
+        [21, y, '.'],
+        [22, y, '.'],
+      ] as [number, number, string][],
+  ),
+  ...[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24].flatMap(
+    (y) =>
+      [
+        [20, y, 'D'],
+        [21, y, 'D'],
+        [22, y, 'D'],
+        [23, y, y < 16 ? 'D' : '.'],
+      ] as [number, number, string][],
+  ),
+  [21, 11, 'S'],
+  [22, 11, 'S'],
+  [21, 12, 'S'],
+  [22, 12, 'S'],
+  [20, 11, 'D'],
+  [23, 11, 'D'],
+  [20, 12, 'D'],
+  [23, 12, 'D'],
+  [21, 10, 'D'],
+  [22, 10, 'D'],
+]);
+/** Прыжок: руки в стороны, ноги поджаты. */
+const BORDACHEV_JUMP = patch(BORDACHEV_BODY, [
+  ...[34, 35, 36, 37, 38, 39].flatMap(
+    (y) =>
+      [4, 5, 6, 7, 8, 9, 14, 15, 16, 17, 18, 19].map((x) => [x, y, '.']) as [
+        number,
+        number,
+        string,
+      ][],
+  ),
+  ...[34, 35].flatMap(
+    (y) =>
+      [3, 4, 5, 6, 7, 8, 15, 16, 17, 18, 19, 20].map((x) => [x, y, 'D']) as [
+        number,
+        number,
+        string,
+      ][],
+  ),
+  ...[36, 37].flatMap(
+    (y) => [2, 3, 4, 5, 18, 19, 20, 21].map((x) => [x, y, 'D']) as [number, number, string][],
+  ),
+]);
+/** Удар: зажмурился, рот открыт. */
+const BORDACHEV_HIT = patch(BORDACHEV_BODY, [
+  [8, 11, 'S'],
+  [8, 12, 'D'],
+  [7, 12, 'D'],
+  [9, 12, 'D'],
+  [15, 11, 'S'],
+  [15, 12, 'D'],
+  [14, 12, 'D'],
+  [16, 12, 'D'],
+  [14, 16, 'S'],
+  [10, 16, 'D'],
+  [11, 16, 'D'],
+  [12, 16, 'D'],
+  [13, 16, 'D'],
+  [10, 17, 'D'],
+  [13, 17, 'D'],
+  [11, 17, 'D'],
+  [12, 17, 'D'],
+  [11, 18, 'D'],
+  [12, 18, 'D'],
+]);
+/** Пришёл в себя: широкая улыбка. */
+const BORDACHEV_FREED = patch(BORDACHEV_BODY, [
+  [8, 16, 'D'],
+  [15, 16, 'D'],
+  [14, 16, 'S'],
+  [9, 17, 'D'],
+  [13, 17, 'D'],
+  [14, 17, 'D'],
+]);
+const bordachev: SpriteDef = {
+  w: 24,
+  h: 40,
+  palette: { D: 0x000000, S: 0xfcbcb0, Y: 0xf8b800 },
+  frames: {
+    idle: BORDACHEV_BODY,
+    aim: BORDACHEV_AIM,
+    jump: BORDACHEV_JUMP,
+    hit: BORDACHEV_HIT,
+    freed: BORDACHEV_FREED,
+  },
+};
+
+/** Глобус «старого мирового порядка»: синее море, зелёные материки, чёрный контур. */
+const globe: SpriteDef = {
+  w: 10,
+  h: 10,
+  palette: { D: 0x000000, B: 0x0058f8, G: 0x00a800 },
+  frames: {
+    idle: [
+      '...DDDD...',
+      '.DDBBGGDD.',
+      '.DBGGGBBD.',
+      'DBBGGBBBGD',
+      'DBBBGBBGGD',
+      'DGBBBBGGBD',
+      'DGGBBBBGBD',
+      '.DGBBBBBD.',
+      '.DDBBGBDD.',
+      '...DDDD...',
+    ],
+  },
+};
+
+/** Крюк крана «принуждение к миру»: блок с тросом и красный крюк. */
+const hook: SpriteDef = {
+  w: 16,
+  h: 16,
+  palette: { D: 0x000000, M: 0xbcbcbc, R: 0xf83800 },
+  frames: {
+    idle: [
+      '......DDDD......',
+      '....DDMMMMDD....',
+      '...DMMDDDDMMD...',
+      '...DMDMMMMDMD...',
+      '...DMMDDDDMMD...',
+      '....DDMMMMDD....',
+      '......DMMD......',
+      '......DRRD......',
+      '......DRRD......',
+      '..DD..DRRD......',
+      '.DRRD.DRRD......',
+      '.DRRD.DRRD......',
+      '.DRRRDDRRD......',
+      '..DRRRRRD.......',
+      '...DRRRD........',
+      '....DDD.........',
+    ],
+  },
+};
+
+// ——— Враги уровня 3 ———
+
+const CRAB_TOP = [
+  '...DDDDDDDDDD...',
+  '...DBBDBBDBBD...',
+  '...DBBDBBDBBD...',
+  '...DDDDDDDDDD...',
+  '..DRRRRRRRRRRD..',
+  '.DRRDRRRRRRDRRD.',
+  'DRDRRRRRRRRRRDRD',
+  'DRDRRRRRRRRRRDRD',
+  '.DD.DRRRRRRD.DD.',
+];
+/** Контейнерный краб: красный краб с синим контейнером на спине. Клешни вверх — замер. */
+const crab: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, R: 0xf83800, B: 0x0058f8 },
+  frames: {
+    walk1: [...CRAB_TOP, '..D.D.D..D.D.D..', '.D..D.D..D.D..D.', '.D...D....D...D.'],
+    walk2: [...CRAB_TOP, '...D.D.DD.D.D...', '..D..D.DD.D..D..', '..D..D....D..D..'],
+    claws: [
+      'DD.DDDDDDDDDD.DD',
+      'RRDDBBDBBDBBDDRR',
+      'DRDDBBDBBDBBDDRD',
+      '.DRDDDDDDDDDDRD.',
+      '..DRRRRRRRRRRD..',
+      '..DRDRRRRRRDRD..',
+      '..DRRRRRRRRRRD..',
+      '..DRRRRRRRRRRD..',
+      '...DDRRRRRRDD...',
+      '..D.D.D..D.D.D..',
+      '.D..D.D..D.D..D.',
+      '.D...D....D...D.',
+    ],
+  },
+};
+
+/** Чайка-дрон: белая чайка с пропеллером на макушке; пикирует, сложив крылья. */
+const gull: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, W: 0xfcfcfc, Y: 0xf8b800 },
+  frames: {
+    fly1: [
+      '.......DDDDD....',
+      'DD........D.....',
+      'DWD.......D.....',
+      '.DWD....DDWD....',
+      '..DWD..DWWWWD...',
+      '...DWDDWWWWDYYD.',
+      '....DWWWWWWWDDD.',
+      '....DWWWWWWWD...',
+      '.....DWWWWWD....',
+      '......DDDDD.....',
+      '.......D..D.....',
+      '................',
+    ],
+    fly2: [
+      '.......DDDDD....',
+      '..........D.....',
+      '..........D.....',
+      '........DDWD....',
+      '.......DWWWWD...',
+      '....DDDWWWWDYYD.',
+      '...DWWWWWWWWDDD.',
+      '..DWWWDWWWWWD...',
+      '.DWWD.DWWWWD....',
+      'DWWD...DDDDD....',
+      'DDD....D..D.....',
+      '................',
+    ],
+    dive: [
+      '.....DDDDD......',
+      '.......D........',
+      '.....DDWD.......',
+      '....DWWWWD......',
+      '...DWWWWWWD.....',
+      '...DWWWWWWWD....',
+      '....DWWWWWWWD...',
+      '.....DWWWWWWWD..',
+      '......DWWWWWDYD.',
+      '.......DDDDDDYYD',
+      '............DYYD',
+      '.............DD.',
+    ],
+  },
+};
+
+const RIGGER_BUCKET = [
+  'DDDDDDDDDDDDDDDD',
+  'DLLLLLLLLLLLLLLD',
+  '.DMMLMMMMMMMMMD.',
+  '.DMMLMMMMMMMMMD.',
+  '.DMMMMMMMMMMMMD.',
+  '..DMMMMMMMMMMD..',
+  '..DMMMMMMMMMMD..',
+  '...DDDDDDDDDD...',
+];
+/** Бот-такелажник в люльке на блоке: голова-экран бота с каской, сидит в ведре. */
+const rigger: SpriteDef = {
+  w: 16,
+  h: 20,
+  palette: { D: 0x000000, M: 0x7c7c7c, L: 0xf8b800 },
+  frames: {
+    idle: [
+      '.......DD.......',
+      '.......DD.......',
+      '....DDDDDDDD....',
+      '...DLLLLLLLLD...',
+      '..DDDDDDDDDDDD..',
+      '..DMMMMMMMMMMD..',
+      '..DMDDDDDDDDMD..',
+      '..DMDLDDDDLDMD..',
+      '..DMDDDDDDDDMD..',
+      '..DMMMMMMMMMMD..',
+      '...DDDDDDDDDD...',
+      '.....DMMMMD.....',
+      ...RIGGER_BUCKET,
+    ],
+    throw: [
+      '.......DD.......',
+      '.......DD..DD...',
+      '....DDDDDDDMMD..',
+      '...DLLLLLLLLDMD.',
+      '..DDDDDDDDDDDDMD',
+      '..DMMMMMMMMMMDMD',
+      '..DMDDDDDDDDMDD.',
+      '..DMDLDDDDLDMD..',
+      '..DMDDDDDDDDMD..',
+      '..DMMMMMMMMMMD..',
+      '...DDDDDDDDDD...',
+      '.....DMMMMD.....',
+      ...RIGGER_BUCKET,
+    ],
+  },
+};
+
+/** Гайка такелажника. */
+const nut: SpriteDef = {
+  w: 6,
+  h: 6,
+  palette: { D: 0x000000, M: 0xbcbcbc },
+  frames: { idle: ['.DDDD.', 'DMMMMD', 'DMDDMD', 'DMDDMD', 'DMMMMD', '.DDDD.'] },
+};
+
 export const SPRITES = {
   bot,
   asterisk,
@@ -700,8 +1064,15 @@ export const SPRITES = {
   paintball,
   agranovich,
   uralov,
+  bordachev,
+  globe,
+  hook,
   headline,
   cable,
+  crab,
+  gull,
+  rigger,
+  nut,
   pump,
   jug,
 } as const satisfies Record<string, SpriteDef>;

@@ -2,8 +2,11 @@ import type { Point, Rect } from './geom';
 import { contains } from './geom';
 import { TileGrid } from './TileGrid';
 
-/** Направление прокрутки сегмента камеры. lock — зафиксированный экран (арена босса). */
-export type SegmentDir = 'right' | 'down' | 'up' | 'lock';
+/**
+ * Направление прокрутки сегмента камеры. lock — зафиксированный экран (арена босса);
+ * rise — арена, где всё поднимается: камера сама опускается вдоль повторяющейся шахты.
+ */
+export type SegmentDir = 'right' | 'down' | 'up' | 'lock' | 'rise';
 
 export interface Segment extends Rect {
   readonly dir: SegmentDir;
@@ -11,6 +14,11 @@ export interface Segment extends Rect {
   readonly boss: string | null;
   /** Где возрождается игрок в этом сегменте (низ-центр). */
   readonly respawn: Point;
+  /**
+   * rise: период шахты, px. Камера, опустившись на столько, вместе со всем миром переносится
+   * обратно вверх — шахта бесконечная.
+   */
+  readonly wrap?: number;
 }
 
 /** Точка появления сущности. Координата — низ-центр (ноги). */
@@ -84,7 +92,7 @@ function objects(map: TiledMap, name: string): TiledObject[] {
   return map.layers.find((l) => l.name === name && l.type === 'objectgroup')?.objects ?? [];
 }
 
-const SEGMENT_DIRS: readonly SegmentDir[] = ['right', 'down', 'up', 'lock'];
+const SEGMENT_DIRS: readonly SegmentDir[] = ['right', 'down', 'up', 'lock', 'rise'];
 const SPAWN_TYPES: readonly SpawnPoint['type'][] = [
   'enemy',
   'item',
@@ -119,11 +127,13 @@ export function parseTiledLevel(map: TiledMap): LevelData {
     const rect = { x: o.x, y: o.y, w: o.width, h: o.height };
     const rp = respawns.find((r) => contains(rect, r));
     const boss = prop(o, 'boss');
+    const wrap = prop(o, 'wrap');
     return {
       ...rect,
       dir: dir as SegmentDir,
       boss: typeof boss === 'string' ? boss : null,
       respawn: rp ? { x: rp.x, y: rp.y } : { x: rect.x + 32, y: rect.y + rect.h / 2 },
+      ...(typeof wrap === 'number' ? { wrap } : {}),
     };
   });
   if (segments.length === 0) throw new Error('Level has no camera segments');
