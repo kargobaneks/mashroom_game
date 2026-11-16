@@ -16,6 +16,7 @@ import { buildLevel3Deck } from './levels/level3_1.mjs';
 import { buildLevel3Hold } from './levels/level3_2.mjs';
 import { buildLevel3Arena } from './levels/level3_3.mjs';
 import { buildLevel4Fridge } from './levels/level4_1.mjs';
+import { buildLevel5Arena } from './levels/level5_arena.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const levelsDir = join(root, 'src/data/levels');
@@ -41,6 +42,8 @@ const levels = {
   level3_3: buildLevel3Arena,
   // Уровень 4 — холодильник: одна часть (вправо, вверх, вправо, вверх), таймер 3:00, без босса.
   level4_1: buildLevel4Fridge,
+  // Уровень 5 — пока только арена Микитко (маршрут по складу — по кадрам оригинала).
+  level5_arena: buildLevel5Arena,
 };
 for (const [name, build] of Object.entries(levels)) {
   const artPath = join(tilesetsDir, `${name}.png`);

@@ -4,6 +4,8 @@ import { SPRITE_ANIM, spriteFrameName, type SpriteId } from '../art/sprites';
 import { PLAYER_PHYSICS } from '../config/physics';
 import type { Boss } from '../sim/World';
 import { Bordachev } from '../sim/bosses/Bordachev';
+import { Mikitko } from '../sim/bosses/Mikitko';
+import { MIKITKO } from '../config/balance';
 import { Uralov } from '../sim/bosses/Uralov';
 import { Rigger } from '../sim/enemies/Rigger';
 import type { Enemy, EnemyKind } from '../sim/enemies';
@@ -20,6 +22,8 @@ const TILEMAP_KEY_PREFIX = 'map-';
 const LABEL_SIZE = 8;
 
 const DEPTH = {
+  /** Свет погашен (арена Микитко): чёрное поверх арта, под всеми, кто на арене. */
+  dark: 0.5,
   /** Вода — над артом, но под предметами, кораблём и героями: их всегда видно. */
   water: 1,
   mechanism: 2,
@@ -93,6 +97,8 @@ interface SpriteView {
   /** Залить белым (вспышка-предупреждение). */
   readonly flash?: boolean;
   readonly offsetY?: number;
+  /** Поворот спрайта, рад (вокруг центра rect). */
+  readonly angle?: number;
 }
 
 /**
@@ -151,7 +157,19 @@ export class LevelView {
     }
     this.hasArt = art !== null;
     this.debug = scene.add.graphics().setDepth(DEPTH.overlay);
+    this.darkness = scene.add
+      .rectangle(0, 0, 1, 1, 0x000000)
+      .setOrigin(0)
+      .setDepth(DEPTH.dark)
+      .setVisible(false);
+    // Пламя свечей (зоны flame): горит и в темноте.
+    this.flames = world.level.zones.filter((z) => z.kind === 'flame');
   }
+
+  private readonly darkness: Phaser.GameObjects.Rectangle;
+  private readonly flames: readonly Rect[];
+  /** Ключи слоёв призрака Микитко. */
+  private readonly ghostLayers = { coat: {}, hair: {}, face: {} };
 
   private hasArt = false;
 
@@ -188,7 +206,14 @@ export class LevelView {
         this.sprites.set(key, s);
       }
       s.setFrame(spriteFrameName(v.id, v.frame));
-      s.setPosition(Math.round(v.rect.x), Math.round(v.rect.y + (v.offsetY ?? 0)));
+      if (v.angle !== undefined) {
+        // Повёрнутый (луч): центр спрайта — в центре хитбокса, вдоль направления полёта.
+        s.setOrigin(0.5, 0.5).setRotation(v.angle);
+        s.setPosition(Math.round(v.rect.x + v.rect.w / 2), Math.round(v.rect.y + v.rect.h / 2));
+      } else {
+        s.setOrigin(0).setRotation(0);
+        s.setPosition(Math.round(v.rect.x), Math.round(v.rect.y + (v.offsetY ?? 0)));
+      }
       s.setDepth(v.depth)
         .setFlipX(v.flip ?? false)
         .setVisible(v.visible ?? true)
@@ -209,7 +234,7 @@ export class LevelView {
       const held = it.state === 'carried' || it.state === 'hiding';
       draw(it, {
         id: it.kind,
-        frame: 'idle',
+        frame: it.kind === 'letter' ? it.glyph : 'idle',
         rect: it,
         depth: held ? DEPTH.carried : DEPTH.item,
         offsetY: it.state === 'carried' ? -lift : 0,
@@ -219,10 +244,18 @@ export class LevelView {
     for (const e of w.enemies) draw(e, this.enemyView(e, f));
     this.syncRopes();
     for (const p of w.players) this.syncHero(p);
-    if (w.boss) draw(w.boss, this.bossView(w.boss, f));
+    if (w.boss instanceof Mikitko) this.syncMikitko(w.boss, f, draw);
+    else if (w.boss) draw(w.boss, this.bossView(w.boss, f));
+    this.syncDark(f, draw);
     this.syncCrane(draw);
     for (const pr of w.projectiles)
-      draw(pr, { id: pr.kind, frame: 'idle', rect: pr, depth: DEPTH.projectile });
+      draw(pr, {
+        id: pr.kind,
+        frame: pr.kind === 'beam' ? alt(f, 3, 'a', 'b') : 'idle',
+        rect: pr,
+        depth: DEPTH.projectile,
+        ...(pr.kind === 'beam' ? { angle: Math.atan2(pr.vy, pr.vx) } : {}),
+      });
     for (const l of w.mech.lifts)
       draw(l, { id: 'pump', frame: 'idle', rect: l, depth: DEPTH.mechanism });
     // Тающие платформы: тают — дрожат и бледнеют, растаяли — не видны.
@@ -370,6 +403,60 @@ export class LevelView {
       visible: !e.hidden && (!frozen || blink(e.stun)),
       alpha: frozen ? 0.6 : 1,
     };
+  }
+
+  /** Темнота на арене архива и пламя свечей поверх неё. */
+  private syncDark(f: number, draw: (key: object, v: SpriteView) => void): void {
+    const cam = this.world.camera;
+    this.darkness.setVisible(this.world.dark).setPosition(cam.x, cam.y).setSize(cam.w, cam.h);
+    for (const z of this.flames)
+      draw(z, {
+        id: 'flame',
+        frame: alt(f + Math.round(z.x), 8, 'a', 'b'),
+        rect: z,
+        depth: DEPTH.mechanism,
+      });
+  }
+
+  /**
+   * Призрак Микитко: три слоя 64×80 (пальто, волосы, лицо) в одной точке, хитбокс — внутри.
+   * Проявляется и растворяется прозрачностью. Побеждён — человек 24×40 на полу.
+   */
+  private syncMikitko(b: Mikitko, _f: number, draw: (key: object, v: SpriteView) => void): void {
+    if (b.defeated) {
+      draw(b, { id: 'mikitko', frame: 'freed', rect: b, depth: DEPTH.boss, flip: b.facing < 0 });
+      return;
+    }
+    const S = MIKITKO.sprite;
+    const flip = b.facing < 0;
+    // Покачивание — в самой логике (плавное, одно); здесь не добавляем второе.
+    const rect = {
+      x: b.x - (flip ? S.w - S.hitX - b.w : S.hitX),
+      y: b.y - S.hitY,
+      w: S.w,
+      h: S.h,
+    };
+    // Рука вытянута, пока заряжает и пока луч уходит.
+    const frame = b.invuln > 0 ? 'hit' : b.telegraphing || b.state === 'shoot' ? 'aim' : 'idle';
+    const visible = b.opacity > 0 && (b.invuln === 0 || blink(b.invuln));
+    const flash = b.telegraphing && !blink(b.timer);
+    const layers = [
+      ['mikitkoGhostCoat', this.ghostLayers.coat],
+      ['mikitkoGhostHair', this.ghostLayers.hair],
+      ['mikitkoGhostFace', this.ghostLayers.face],
+    ] as const;
+    layers.forEach(([id, key], i) =>
+      draw(key, {
+        id,
+        frame,
+        rect,
+        depth: DEPTH.boss + i * 0.01,
+        flip,
+        visible,
+        alpha: Math.min(1, b.opacity) * 0.92,
+        flash: flash && i === 0,
+      }),
+    );
   }
 
   private bossView(b: Boss, f: number): SpriteView {

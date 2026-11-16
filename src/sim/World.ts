@@ -5,6 +5,7 @@ import type { PlayerId } from '../systems/InputState';
 import { Agranovich } from './bosses/Agranovich';
 import type { BossWorld } from './bosses/Boss';
 import { Bordachev, type BordachevWorld, type Ledge } from './bosses/Bordachev';
+import { Mikitko, type MikitkoWorld } from './bosses/Mikitko';
 import { Uralov } from './bosses/Uralov';
 import { Camera } from './Camera';
 import { createEnemy, isEnemyKind, type Enemy } from './enemies';
@@ -42,16 +43,19 @@ const ZONE_GRAVITY: Readonly<Record<string, number>> = {
   foam: AGRANOVICH.foamGravityBonus,
 };
 
+const ITEM_KINDS: readonly string[] = ['box', 'case', 'letter'] satisfies ItemKind[];
+const isItemKind = (k: string): k is ItemKind => ITEM_KINDS.includes(k);
+
 /** Расстояние между игроками на старте, px. */
 const COOP_START_OFFSET = 16;
 
-export type Boss = Agranovich | Uralov | Bordachev;
+export type Boss = Agranovich | Uralov | Bordachev | Mikitko;
 
 /**
  * Мир уровня: вся игровая логика без Phaser. Шаг — 1/60 с. Сцена передаёт ввод,
  * рисует состояние и забирает события (звуки, вход в арену, победа, конец игры).
  */
-export class World implements BossWorld, BordachevWorld {
+export class World implements BossWorld, BordachevWorld, MikitkoWorld {
   readonly grid: TileGrid;
   readonly camera: Camera;
   readonly rng: Rng;
@@ -102,7 +106,7 @@ export class World implements BossWorld, BordachevWorld {
       if (p.out) p.state = 'dead';
     }
     for (const sp of level.spawns) {
-      if (sp.type === 'item' && (sp.kind === 'box' || sp.kind === 'case')) {
+      if (sp.type === 'item' && isItemKind(sp.kind)) {
         this.items.push(this.spawnItem(sp));
       } else if (sp.type === 'pickup' && isPickupKind(sp.kind)) {
         this.pickups.push(new Pickup(sp.kind, sp, sp.id));
@@ -113,7 +117,8 @@ export class World implements BossWorld, BordachevWorld {
   }
 
   private spawnItem(sp: SpawnPoint): Item {
-    const it = new Item(sp.kind === 'case' ? 'case' : 'box', sp, sp.id);
+    const it = new Item(isItemKind(sp.kind) ? sp.kind : 'box', sp, sp.id);
+    if (it.kind === 'letter') it.glyph = (['yat', 'i', 'fita'] as const)[sp.id % 3]!;
     const taken = this.revealedSpawns.has(sp.id);
     if (sp.contains && isPickupKind(sp.contains) && !taken) it.contents = sp.contains;
     return it;
@@ -211,6 +216,12 @@ export class World implements BossWorld, BordachevWorld {
       const start = this.level.spawns.find((s) => s.type === 'bossPoint' && contains(seg, s));
       return new Bordachev(this.ledgesIn(seg), start ?? { x: seg.x + seg.w / 2, y: seg.y + 160 });
     }
+    if (seg.boss === 'mikitko') {
+      const points = this.level.spawns
+        .filter((s) => s.type === 'bossPoint' && contains(seg, s))
+        .map((s) => ({ x: s.x, y: s.y }));
+      return new Mikitko(points, this.floorBelow(seg), seg);
+    }
     return null;
   }
 
@@ -263,6 +274,23 @@ export class World implements BossWorld, BordachevWorld {
     const box = new Item('box', at);
     box.fromCrane = true;
     this.items.push(box);
+  }
+
+  // ——— арена Микитко ———
+
+  /** Призрак уронил букву. */
+  dropLetter(item: Item): void {
+    this.items.push(item);
+  }
+
+  /** Сколько букв на арене (лежат, падают, в руках, летят). */
+  lettersOnArena(): number {
+    return this.items.filter((i) => i.kind === 'letter' && i.state !== 'gone').length;
+  }
+
+  /** Свет на арене погашен. */
+  get dark(): boolean {
+    return this.boss instanceof Mikitko && this.boss.dark;
   }
 
   ammoInView(): number {
@@ -347,7 +375,7 @@ export class World implements BossWorld, BordachevWorld {
     this.mech = buildMechanisms(this.level);
     const fresh: Item[] = [];
     for (const sp of this.level.spawns) {
-      if (sp.type === 'item' && contains(seg, sp) && (sp.kind === 'box' || sp.kind === 'case')) {
+      if (sp.type === 'item' && contains(seg, sp) && isItemKind(sp.kind)) {
         fresh.push(this.spawnItem(sp));
       }
     }
@@ -604,6 +632,8 @@ export class World implements BossWorld, BordachevWorld {
       if (
         it.state === 'falling' &&
         !it.fromCrane &&
+        // Призрак Микитко: буквы падают сквозь него (запасные — сверху) и не бьют — только броском.
+        !(boss instanceof Mikitko) &&
         it.vy > 0 &&
         overlaps(it, boss) &&
         boss.hit(this)
@@ -638,7 +668,8 @@ export class World implements BossWorld, BordachevWorld {
       (i) => i.state !== 'gone' && overlaps(i, arena) && this.camera.sees(i, 0),
     );
     // На арене rise боеприпасы приносит кран (ТЗ); коробка сверху уехала бы за экран сразу.
-    if (hasAmmo || boss.state === 'intro' || arena.dir === 'rise') {
+    // Арена Микитко: буквы роняет только сам призрак (отзыв пользователя), сверху ничего не падает.
+    if (hasAmmo || boss.state === 'intro' || arena.dir === 'rise' || boss instanceof Mikitko) {
       this.ammoTimer = 0;
     } else if (++this.ammoTimer >= BOSS_RULES.ammoDropFrames) {
       this.ammoTimer = 0;
@@ -649,7 +680,9 @@ export class World implements BossWorld, BordachevWorld {
         chutes.length > 0
           ? chutes[this.ammoDrops++ % chutes.length]!
           : { x: arena.x + this.rng.int(2 * T, arena.w - 2 * T), y: arena.y + 2 * T };
-      this.items.push(new Item('box' satisfies ItemKind, at));
+      // На арене архива вместо коробок — буквы.
+      const kind: ItemKind = boss instanceof Mikitko ? 'letter' : 'box';
+      this.items.push(new Item(kind, at));
     }
   }
 

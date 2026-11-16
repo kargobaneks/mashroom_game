@@ -62,6 +62,8 @@ export const THROW_PHYSICS = {
 export const ITEMS = {
   box: { width: 16, height: 16, heavy: false, hideable: true },
   case: { width: 16, height: 16, heavy: true, hideable: true },
+  /** Буква ѣ, і, ѳ (арена Микитко): лёгкая, разбивается о цель, под ней не спрятаться. */
+  letter: { width: 16, height: 16, heavy: false, hideable: false },
   gravity: 0.25,
   maxFallSpeed: 4,
 } as const;

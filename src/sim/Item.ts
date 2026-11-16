@@ -5,7 +5,9 @@ import type { PickupKind } from './Pickup';
 import type { Player } from './Player';
 import type { World } from './World';
 
-export type ItemKind = 'box' | 'case';
+export type ItemKind = 'box' | 'case' | 'letter';
+/** Какая буква (для рисунка): ять, і десятеричное, фита. */
+export type LetterGlyph = 'yat' | 'i' | 'fita';
 export type ThrowDir = 'forward' | 'up' | 'ground';
 /**
  * resting — лежит (можно взять; кейс — платформа), falling — падает, carried — в руках,
@@ -39,6 +41,8 @@ export class Item implements Body {
   fromCrane = false;
   /** Что спрятано под ящиком: появляется на его месте, когда ящик поднимают. */
   contents: PickupKind | null = null;
+  /** Буква: какая (рисунок). */
+  glyph: LetterGlyph = 'yat';
 
   constructor(
     readonly kind: ItemKind,
