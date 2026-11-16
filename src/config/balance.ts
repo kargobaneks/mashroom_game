@@ -13,6 +13,8 @@ export const BALANCE = {
     stunFrames: 120,
     cooldownFrames: 20 * 60,
   },
+  /** Выбор провода: «смысл» — бомба гаснет, +1 жизнь (ТЗ). */
+  wireMeaningLives: 1,
   bonusSeconds: 30,
   fridgeSeconds: 180,
   escapeSeconds: 60,

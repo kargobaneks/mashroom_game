@@ -1,0 +1,40 @@
+{
+  "frames": [
+    {
+      "bg": "l3_end_1",
+      "speaker": null,
+      "textKey": "cutscene.l3_end.1",
+      "actors": [
+        { "player": 1, "x": 40, "y": 128 },
+        { "player": 2, "x": 60, "y": 128 }
+      ]
+    },
+    {
+      "bg": "l3_end_1",
+      "speaker": "player1",
+      "textKey": "cutscene.l3_end.2",
+      "actors": [
+        { "player": 1, "x": 40, "y": 128 },
+        { "player": 2, "x": 60, "y": 128 }
+      ]
+    },
+    {
+      "bg": "l3_end_2",
+      "speaker": null,
+      "textKey": "cutscene.l3_end.3",
+      "labels": [{ "textKey": "cutscene.sign.fridge", "x": 196, "y": 70 }]
+    },
+    {
+      "bg": "l3_end_2",
+      "speaker": "grpzdc",
+      "textKey": "cutscene.l3_end.4",
+      "labels": [{ "textKey": "cutscene.sign.fridge", "x": 196, "y": 70 }]
+    },
+    {
+      "bg": "l3_end_3",
+      "speaker": null,
+      "textKey": "cutscene.l3_end.5",
+      "labels": [{ "textKey": "cutscene.sign.fridge", "x": 124, "y": 4 }]
+    }
+  ]
+}

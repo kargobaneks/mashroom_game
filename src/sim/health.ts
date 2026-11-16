@@ -1,5 +1,6 @@
 import { BALANCE } from '../config/balance';
 import { PLAYER_PHYSICS } from '../config/physics';
+import type { PlayerId } from '../systems/InputState';
 
 /** Здоровье и жизни игрока (ТЗ: «Здоровье и жизни»). Чистые функции, удобно тестировать. */
 export interface Vitals {
@@ -61,4 +62,30 @@ export function restoreForContinue(v: Vitals): void {
   v.lives = BALANCE.startLives;
   v.hearts = v.maxHearts;
   v.invuln = 0;
+}
+
+/** Что переносится из части уровня в следующую и между уровнями: здоровье, жизни, таймкоды. */
+export interface PlayerCarry {
+  readonly id: PlayerId;
+  readonly vitals: Readonly<Vitals>;
+  readonly timecodes: number;
+}
+
+/**
+ * Награда между уровнями (выбор провода, бонус-игры): игрокам ids — сердца (лечение, не выше
+ * максимума) и жизни. Кого нет в carry — начинает со свежих.
+ */
+export function rewardCarry(
+  carry: readonly PlayerCarry[],
+  ids: readonly PlayerId[],
+  reward: (id: PlayerId) => { hearts: number; lives: number },
+): PlayerCarry[] {
+  return ids.map((id) => {
+    const prev = carry.find((c) => c.id === id);
+    const vitals: Vitals = prev ? { ...prev.vitals } : newVitals();
+    const r = reward(id);
+    heal(vitals, r.hearts);
+    for (let i = 0; i < r.lives; i++) addLife(vitals);
+    return { id, vitals, timecodes: prev?.timecodes ?? 0 };
+  });
 }

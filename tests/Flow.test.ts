@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
+import { rewardCarry } from '../src/sim/health';
 import type { LevelId } from '../src/config/levels';
 import {
   applyEvent,
@@ -125,9 +126,54 @@ describe('Flow', () => {
     });
   });
 
+  it('hearts, lives and timecodes go from level to level (bonus games add to them)', () => {
+    let run = applyEvent(newRun(1, 'sergey'), done).run!; // Level 1
+    expect(run.carry).toEqual([]);
+    const carry = [
+      { id: 1 as const, vitals: { hearts: 2, maxHearts: 4, lives: 5, invuln: 0 }, timecodes: 7 },
+    ];
+    run = applyEvent(run, { type: 'done', carry }).run!; // WireChoice
+    expect(run.carry).toEqual(carry);
+    run = applyEvent(run, done).run!; // кат-сцена без carry — не меняет
+    expect(run.carry).toEqual(carry);
+  });
+
+  it('continue restarts the level with start lives and full hearts, keeping max hearts and timecodes', () => {
+    let run = applyEvent(newRun(1, 'sergey'), done).run!;
+    run = applyEvent(run, {
+      type: 'done',
+      carry: [{ id: 1, vitals: { hearts: 0, maxHearts: 4, lives: 0, invuln: 9 }, timecodes: 3 }],
+    }).run!;
+    run = applyEvent(run, { type: 'gameOver' }).run!;
+    run = applyEvent(run, { type: 'continue' }).run!;
+    expect(run.carry[0]).toEqual({
+      id: 1,
+      vitals: { hearts: 4, maxHearts: 4, lives: BALANCE.startLives, invuln: 0 },
+      timecodes: 3,
+    });
+  });
+
   it('continuing inside a park attraction restarts that attraction', () => {
     let run = applyEvent(atPark(), pick(7)).run!;
     run = applyEvent(run, { type: 'gameOver' }).run!;
     expect(applyEvent(run, { type: 'continue' }).route).toEqual({ scene: 'Level', level: 7 });
+  });
+});
+
+describe('rewards between levels (wire choice, bonus games)', () => {
+  it('adds lives and heals (not above max); a player without carry starts fresh', () => {
+    const carry = [
+      { id: 1 as const, vitals: { hearts: 1, maxHearts: 3, lives: 2, invuln: 0 }, timecodes: 4 },
+    ];
+    const out = rewardCarry(carry, [1, 2], (id) =>
+      id === 1 ? { hearts: 5, lives: 1 } : { hearts: 0, lives: 1 },
+    );
+    expect(out[0]).toEqual({
+      id: 1,
+      vitals: { hearts: 3, maxHearts: 3, lives: 3, invuln: 0 },
+      timecodes: 4,
+    });
+    expect(out[1]!.vitals.lives).toBe(BALANCE.startLives + 1);
+    expect(out[1]!.vitals.hearts).toBe(BALANCE.startHearts);
   });
 });

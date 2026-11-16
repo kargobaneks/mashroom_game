@@ -8,6 +8,7 @@ import {
   type ParkLevelId,
   type StoryStep,
 } from '../config/levels';
+import type { PlayerCarry } from '../sim/health';
 
 /** Порядок сцен игры как чистый автомат: состояние прохождения + событие → следующая сцена. */
 
@@ -24,6 +25,11 @@ export interface Run {
   readonly parkLevel: ParkLevelId | null;
   readonly parkKeys: readonly ParkLevelId[];
   readonly continuesLeft: number;
+  /**
+   * Здоровье, жизни и таймкоды игроков между уровнями (бонус-игры и выбор провода их меняют).
+   * Пусто — свежие (начало игры).
+   */
+  readonly carry: readonly PlayerCarry[];
 }
 
 export type Route =
@@ -39,8 +45,11 @@ export type Route =
 export type SceneKey = Route['scene'];
 
 export type FlowEvent =
-  /** Сцена закончилась: уровень пройден, кат-сцена досмотрена и т. п. */
-  | { readonly type: 'done' }
+  /**
+   * Сцена закончилась: уровень пройден, кат-сцена досмотрена и т. п. carry — состояние игроков
+   * после неё (уровень, бонус-игра); нет — не изменилось.
+   */
+  | { readonly type: 'done'; readonly carry?: readonly PlayerCarry[] }
   /** Выбор в хабе парка: аттракцион 6–8 или ворота студии (9). */
   | { readonly type: 'parkPick'; readonly level: LevelId }
   | { readonly type: 'gameOver' }
@@ -60,6 +69,7 @@ export function newRun(players: PlayerCount, hero: HeroId): Run {
     parkLevel: null,
     parkKeys: [],
     continuesLeft: BALANCE.continues,
+    carry: [],
   };
 }
 
@@ -111,6 +121,7 @@ function go(run: Run): Transition {
 export function applyEvent(run: Run, ev: FlowEvent): Transition {
   switch (ev.type) {
     case 'done': {
+      if (ev.carry) run = { ...run, carry: ev.carry };
       const step = stepAt(run);
       if (step.kind === 'park') {
         if (run.parkLevel === null) throw new Error('Park hub is left via parkPick, not done');
@@ -135,7 +146,15 @@ export function applyEvent(run: Run, ev: FlowEvent): Transition {
       return { run, route: { scene: 'GameOver', canContinue: run.continuesLeft > 0 } };
     case 'continue':
       if (run.continuesLeft <= 0) throw new Error('No continues left');
-      return go({ ...run, continuesLeft: run.continuesLeft - 1 });
+      // С начала уровня: жизни — стартовые, сердца — полные; максимум сердец и таймкоды остаются.
+      return go({
+        ...run,
+        continuesLeft: run.continuesLeft - 1,
+        carry: run.carry.map((c) => ({
+          ...c,
+          vitals: { ...c.vitals, lives: BALANCE.startLives, hearts: c.vitals.maxHearts, invuln: 0 },
+        })),
+      });
     case 'quit':
       return { run: null, route: { scene: 'Title' } };
   }

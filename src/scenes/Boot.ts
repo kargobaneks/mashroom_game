@@ -1,9 +1,11 @@
 import tilesUrl from '../../assets/tilesets/placeholder.png';
+import { CUTSCENE_IMAGES, cutsceneTextureKey } from '../data/cutscenes';
 import { artTextureKey, LEVELS } from '../data/levels';
 import { registerHeroSprites } from '../render/heroSprites';
 import { TILESET_KEY } from '../render/LevelView';
 import { registerSpriteAtlas } from '../render/spriteAtlas';
 import { musicKey, registerSfx, sfxKey } from '../systems/Audio';
+import { newRun, routeOf } from '../systems/Flow';
 import { t } from '../systems/Text';
 import { registerPixelFont } from '../ui/font';
 import { uiText } from '../ui/text';
@@ -22,6 +24,8 @@ export class Boot extends BaseScene {
     for (const parts of Object.values(LEVELS)) {
       for (const part of parts) this.load.image(artTextureKey(part.artTileset), part.artUrl);
     }
+    for (const [bg, url] of Object.entries(CUTSCENE_IMAGES))
+      this.load.image(cutsceneTextureKey(bg), url);
   }
 
   protected build(): void {
@@ -60,6 +64,15 @@ export class Boot extends BaseScene {
   }
 
   protected tick(): void {
-    if (this.ready) this.switchTo({ scene: 'Title' });
+    if (!this.ready) return;
+    // Только dev: ?story=N[&players=2] — сразу на шаг N сценария (STORY), например 7 — бонус «Кран».
+    const story = import.meta.env.DEV ? new URLSearchParams(location.search).get('story') : null;
+    if (story !== null) {
+      const players = new URLSearchParams(location.search).get('players') === '2' ? 2 : 1;
+      const run = { ...newRun(players, 'sergey'), step: Number(story) };
+      this.startRun(run, routeOf(run));
+      return;
+    }
+    this.switchTo({ scene: 'Title' });
   }
 }

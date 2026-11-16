@@ -1,9 +1,11 @@
-// Собирает карты уровней (Tiled JSON), тайлсеты арта и PNG-заглушку столкновений.
+// Собирает карты уровней (Tiled JSON), тайлсеты арта, PNG-заглушку столкновений и иллюстрации
+// кат-сцен.
 // Запуск: npm run levels
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { placeholderTileset } from './levels/lib.mjs';
+import { encodePng, placeholderTileset } from './levels/lib.mjs';
+import { L3_END } from './cutscenes/l3_end.mjs';
 import { buildLevel1Hall } from './levels/level1_1.mjs';
 import { buildLevel1Kitchen } from './levels/level1_2.mjs';
 import { buildLevel1Sink } from './levels/level1_3.mjs';
@@ -47,4 +49,13 @@ for (const [name, build] of Object.entries(levels)) {
   writeFileSync(artPath, artPng);
   writeFileSync(join(levelsDir, `${name}.json`), JSON.stringify(json));
   console.log(`${name}: ${json.width}×${json.height}, art tiles: ${json.tilesets[1].tilecount}`);
+}
+
+// Иллюстрации кат-сцен (под текстовым окном).
+const cutscenesDir = join(root, 'assets/cutscenes');
+mkdirSync(cutscenesDir, { recursive: true });
+for (const [name, draw] of Object.entries({ ...L3_END })) {
+  const pix = draw();
+  writeFileSync(join(cutscenesDir, `${name}.png`), encodePng(pix.w, pix.h, pix.data));
+  console.log(`cutscene ${name}: ${pix.w}×${pix.h}`);
 }

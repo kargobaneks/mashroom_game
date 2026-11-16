@@ -1050,6 +1050,44 @@ const nut: SpriteDef = {
   frames: { idle: ['.DDDD.', 'DMMMMD', 'DMDDMD', 'DMDDMD', 'DMMMMD', '.DDDD.'] },
 };
 
+// ——— Бонус-игра «Кран» ———
+
+const CLAW_TOP = [
+  '......DDDD......',
+  '......DMMD......',
+  '....DDDMMDDD....',
+  '...DMMMMMMMMD...',
+  '...DDDDDDDDDD...',
+];
+/** Захват крана в автомате: раскрыт / сжат. */
+const claw: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, M: 0xbcbcbc },
+  frames: {
+    open: [
+      ...CLAW_TOP,
+      '...DM......MD...',
+      '..DM........MD..',
+      '..DM........MD..',
+      '.DM..........MD.',
+      '.DM..........MD.',
+      '.DD..........DD.',
+      '................',
+    ],
+    closed: [
+      ...CLAW_TOP,
+      '....DM....MD....',
+      '....DM....MD....',
+      '.....DM..MD.....',
+      '.....DM..MD.....',
+      '......DMMD......',
+      '......DDDD......',
+      '................',
+    ],
+  },
+};
+
 export const SPRITES = {
   bot,
   asterisk,
@@ -1075,6 +1113,7 @@ export const SPRITES = {
   nut,
   pump,
   jug,
+  claw,
 } as const satisfies Record<string, SpriteDef>;
 
 export type SpriteId = keyof typeof SPRITES;

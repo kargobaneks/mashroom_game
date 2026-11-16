@@ -9,7 +9,9 @@ import { Uralov } from './bosses/Uralov';
 import { Camera } from './Camera';
 import { createEnemy, isEnemyKind, type Enemy } from './enemies';
 import { contains, overlaps, type Point, type Rect } from './geom';
-import { addLife, heal, loseLife, type Vitals } from './health';
+import { addLife, heal, loseLife, type PlayerCarry } from './health';
+
+export type { PlayerCarry } from './health';
 import { Item, type ItemKind, type ThrowDir } from './Item';
 import { buildMechanisms, type Mechanisms, type Rider } from './Mechanisms';
 import type { LevelData, Segment, SpawnPoint } from './level';
@@ -33,13 +35,6 @@ export type WorldEvent =
 export interface PlayerSetup {
   readonly id: PlayerId;
   readonly hero: HeroId;
-}
-
-/** Что переносится из части уровня в следующую: здоровье, жизни, таймкоды. */
-export interface PlayerCarry {
-  readonly id: PlayerId;
-  readonly vitals: Readonly<Vitals>;
-  readonly timecodes: number;
 }
 
 /** Зоны уровня, которые добавляют игроку гравитацию. */

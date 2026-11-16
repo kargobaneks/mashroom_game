@@ -81,7 +81,9 @@ export class Level extends BaseScene<LevelSceneData> {
           ]
         : [{ id: 1, hero: run.hero }];
     const map = asset.map;
-    this.world = new World(parseTiledLevel(map), setup, level * 10 + part, carry);
+    // Начало уровня — с тем, что принесли из прошлых уровней и бонус-игр.
+    const carryIn = part === 0 && carry.length === 0 ? this.run.carry : carry;
+    this.world = new World(parseTiledLevel(map), setup, level * 10 + part, carryIn);
     if (warpToBoss) this.world.warpToBoss();
     if (part > 0) this.cameras.main.fadeIn(PART_FADE_MS, 0, 0, 0);
     playMusic(this, `level${level}`);
@@ -191,7 +193,7 @@ export class Level extends BaseScene<LevelSceneData> {
                 t(`boss.${boss?.name}.name`),
                 t(`boss.${boss?.name}.outro`),
               ),
-              then: () => this.go({ type: 'done' }),
+              then: () => this.go({ type: 'done', carry: world.carryOut() }),
             };
           },
         };
@@ -228,7 +230,7 @@ export class Level extends BaseScene<LevelSceneData> {
   private nextPart(world: World): void {
     const parts = LEVELS[this.levelId] ?? [];
     if (this.partIndex + 1 >= parts.length) {
-      this.go({ type: 'done' });
+      this.go({ type: 'done', carry: world.carryOut() });
       return;
     }
     this.restartLevel({ level: this.levelId, part: this.partIndex + 1, carry: world.carryOut() });
