@@ -80,6 +80,9 @@ const ENEMY_FRAMES: Record<EnemyKind, readonly [string, string]> = {
   rigger: ['idle', 'idle'],
   icicle: ['hang', 'hang'],
   phone: ['slide1', 'slide2'],
+  commentGhost: ['fly1', 'fly2'],
+  candle: ['walk1', 'walk2'],
+  candleCeil: ['walk1', 'walk2'],
 };
 
 function alt(frame: number, per: number, a: string, b: string): string {
@@ -164,10 +167,12 @@ export class LevelView {
       .setVisible(false);
     // Пламя свечей (зоны flame): горит и в темноте.
     this.flames = world.level.zones.filter((z) => z.kind === 'flame');
+    this.helpers = world.level.zones.filter((z) => z.kind === 'helper');
   }
 
   private readonly darkness: Phaser.GameObjects.Rectangle;
   private readonly flames: readonly Rect[];
+  private readonly helpers: readonly Rect[];
   /** Ключи слоёв призрака Микитко. */
   private readonly ghostLayers = { coat: {}, hair: {}, face: {} };
 
@@ -408,7 +413,21 @@ export class LevelView {
   /** Темнота на арене архива и пламя свечей поверх неё. */
   private syncDark(f: number, draw: (key: object, v: SpriteView) => void): void {
     const cam = this.world.camera;
-    this.darkness.setVisible(this.world.dark).setPosition(cam.x, cam.y).setSize(cam.w, cam.h);
+    const d = this.world.darkness;
+    this.darkness
+      .setVisible(this.world.dark)
+      .setFillStyle(d.color, d.alpha)
+      .setPosition(cam.x, cam.y)
+      .setSize(cam.w, cam.h);
+    // Помощник (Петровский) стоит в своей зоне.
+    for (const z of this.helpers)
+      draw(z, {
+        id: 'petrovsky',
+        frame: 'idle',
+        rect: { x: z.x + z.w / 2 - 12, y: z.y + z.h - 40, w: 24, h: 40 },
+        depth: DEPTH.enemy,
+        flip: true,
+      });
     for (const z of this.flames)
       draw(z, {
         id: 'flame',

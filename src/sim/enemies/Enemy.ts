@@ -12,7 +12,10 @@ export type EnemyKind =
   | 'gull'
   | 'rigger'
   | 'icicle'
-  | 'phone';
+  | 'phone'
+  | 'commentGhost'
+  | 'candle'
+  | 'candleCeil';
 
 let nextEnemyId = 1;
 

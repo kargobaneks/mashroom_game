@@ -1,5 +1,6 @@
 import { AGRANOVICH, BALANCE, BOSS_RULES, URALOV } from '../config/balance';
 import { ENEMIES } from '../config/enemies';
+import { ARCHIVE_HALL } from '../config/mechanisms';
 import type { HeroId } from '../systems/Flow';
 import type { PlayerId } from '../systems/InputState';
 import { Agranovich } from './bosses/Agranovich';
@@ -15,7 +16,7 @@ import { addLife, heal, loseLife, type PlayerCarry } from './health';
 export type { PlayerCarry } from './health';
 import { Item, type ItemKind, type ThrowDir } from './Item';
 import { buildMechanisms, type Mechanisms, type Rider } from './Mechanisms';
-import type { LevelData, Segment, SpawnPoint } from './level';
+import type { LevelData, Segment, SpawnPoint, Zone } from './level';
 import { isPickupKind, Pickup, type PickupKind } from './Pickup';
 import { Player, type InputView } from './Player';
 import type { Projectile } from './Projectile';
@@ -31,7 +32,9 @@ export type WorldEvent =
   | { readonly type: 'pickup'; readonly kind: PickupKind; readonly player: PlayerId }
   | { readonly type: 'gameOver' }
   /** Игрок дошёл до выхода части уровня. */
-  | { readonly type: 'exit' };
+  | { readonly type: 'exit' }
+  /** Встреча с помощником (Петровский): реплика, сердца восстановлены. */
+  | { readonly type: 'helper'; readonly who: string };
 
 export interface PlayerSetup {
   readonly id: PlayerId;
@@ -181,6 +184,7 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     if (this.boss) this.updateBoss(this.boss);
 
     this.collectPickups();
+    this.checkHelpers();
     this.checkExit();
     this.checkPits();
     this.cleanup();
@@ -288,9 +292,42 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     return this.items.filter((i) => i.kind === 'letter' && i.state !== 'gone').length;
   }
 
-  /** Свет на арене погашен. */
+  /** Свет погашен: арена Микитко или мигающий свет портретного зала. */
   get dark(): boolean {
-    return this.boss instanceof Mikitko && this.boss.dark;
+    if (this.boss instanceof Mikitko) return this.boss.dark;
+    if (!this.level.flicker) return false;
+    const H = ARCHIVE_HALL;
+    const t = this.frame % (H.litFrames + H.flickerFrames + H.darkFrames);
+    if (t < H.litFrames) return false;
+    if (t < H.litFrames + H.flickerFrames) return Math.floor(t / H.flickerPeriod) % 2 === 0;
+    return true;
+  }
+
+  /** Насколько темно: на арене — чёрная тьма, в зале — синие силуэты. */
+  get darkness(): { color: number; alpha: number } {
+    return this.boss instanceof Mikitko
+      ? { color: 0x000000, alpha: 1 }
+      : { color: ARCHIVE_HALL.darkColor, alpha: ARCHIVE_HALL.darkAlpha };
+  }
+
+  // ——— помощник (Петровский) ———
+
+  private readonly helped = new Set<Zone>();
+
+  /** Встал рядом с помощником — один раз за часть: реплика и полные сердца у всех (ТЗ). */
+  private checkHelpers(): void {
+    for (const z of this.level.zones) {
+      if (z.kind !== 'helper' || this.helped.has(z)) continue;
+      const near = this.players.some(
+        (p) => p.active && contains(z, { x: p.x + p.w / 2, y: p.y + p.h - 1 }),
+      );
+      if (!near) continue;
+      this.helped.add(z);
+      for (const p of this.players) if (!p.out) p.vitals.hearts = p.vitals.maxHearts;
+      this.frozen = true;
+      this.emit({ type: 'helper', who: 'petrovsky' });
+      this.emit({ type: 'sfx', name: 'coffee' });
+    }
   }
 
   ammoInView(): number {

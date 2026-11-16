@@ -63,6 +63,7 @@ export function makeWorld(o: TestWorldOpts = {}): World {
       playerStart: o.start ?? { x: 40, y: 208 },
       timerFrames: o.timerFrames ?? null,
       slippery: o.slippery ?? false,
+      flicker: false,
     },
     o.players ?? [{ id: 1, hero: 'sergey' }],
   );

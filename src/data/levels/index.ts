@@ -8,6 +8,8 @@ import level3DeckArt from '../../../assets/tilesets/level3_1.png';
 import level3HoldArt from '../../../assets/tilesets/level3_2.png';
 import level3ArenaArt from '../../../assets/tilesets/level3_3.png';
 import level4FridgeArt from '../../../assets/tilesets/level4_1.png';
+import level5WarehouseArt from '../../../assets/tilesets/level5_1.png';
+import level5HallArt from '../../../assets/tilesets/level5_2.png';
 import level5ArenaArt from '../../../assets/tilesets/level5_arena.png';
 import type { LevelId } from '../../config/levels';
 import type { TiledMap } from '../../sim/level';
@@ -21,6 +23,8 @@ import level3Deck from './level3_1.json';
 import level3Hold from './level3_2.json';
 import level3Arena from './level3_3.json';
 import level4Fridge from './level4_1.json';
+import level5Warehouse from './level5_1.json';
+import level5Hall from './level5_2.json';
 import level5Arena from './level5_arena.json';
 
 /** Часть уровня: карта Tiled и тайлсет её арта. */
@@ -53,8 +57,12 @@ export const LEVELS: Partial<Record<LevelId, readonly LevelPart[]>> = {
   ],
   // Холодильник: одна часть, босса нет (как в оригинале).
   4: [{ map: level4Fridge as TiledMap, artTileset: 'level4_1', artUrl: level4FridgeArt }],
-  // Архив: пока только арена Микитко; маршрут по складу — следующим шагом.
-  5: [{ map: level5Arena as TiledMap, artTileset: 'level5_arena', artUrl: level5ArenaArt }],
+  // Архив: склад → портретный зал (Петровский) → арена Микитко.
+  5: [
+    { map: level5Warehouse as TiledMap, artTileset: 'level5_1', artUrl: level5WarehouseArt },
+    { map: level5Hall as TiledMap, artTileset: 'level5_2', artUrl: level5HallArt },
+    { map: level5Arena as TiledMap, artTileset: 'level5_arena', artUrl: level5ArenaArt },
+  ],
 };
 
 export const artTextureKey = (tileset: string): string => `art-${tileset}`;

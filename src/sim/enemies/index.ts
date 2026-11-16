@@ -3,6 +3,8 @@ import { Asterisk } from './Asterisk';
 import { Barista } from './Barista';
 import { Bot } from './Bot';
 import { Cable } from './Cable';
+import { Candle } from './Candle';
+import { CommentGhost } from './CommentGhost';
 import { Crab } from './Crab';
 import { Gull } from './Gull';
 import { Headline } from './Headline';
@@ -22,6 +24,9 @@ const FACTORIES: Record<EnemyKind, (at: Point, spawnId: number) => Enemy> = {
   rigger: (at, id) => new Rigger(at, id),
   icicle: (at, id) => new Icicle(at, id),
   phone: (at, id) => new Phone(at, id),
+  commentGhost: (at, id) => new CommentGhost(at, id),
+  candle: (at, id) => new Candle(at, id),
+  candleCeil: (at, id) => new Candle(at, id, true),
 };
 
 export function isEnemyKind(k: string): k is EnemyKind {

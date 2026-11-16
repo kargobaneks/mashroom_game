@@ -206,6 +206,14 @@ export class Level extends BaseScene<LevelSceneData> {
         this.cameras.main.fadeOut(PART_FADE_MS, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => this.nextPart(world));
         return;
+      case 'helper':
+        // Петровский: реплика, сердца уже восстановлены.
+        this.mode = {
+          kind: 'dialogue',
+          box: new DialogueBox(this, t(`helper.${ev.who}.name`), t(`helper.${ev.who}.line`)),
+          then: () => world.resume(),
+        };
+        return;
       case 'gameOver':
         stopMusic(this);
         this.mode = {

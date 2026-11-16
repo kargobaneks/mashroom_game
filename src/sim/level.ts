@@ -44,6 +44,8 @@ export interface LevelData {
   readonly timerFrames: number | null;
   /** Сплошной пол скользкий (свойство карты `slippery`). */
   readonly slippery: boolean;
+  /** Свет то и дело гаснет (портретный зал уровня 5; свойство карты `flicker`). */
+  readonly flicker: boolean;
 }
 
 // Минимальная схема Tiled JSON, которую мы читаем.
@@ -173,5 +175,6 @@ export function parseTiledLevel(map: TiledMap): LevelData {
     playerStart: { x: start.x, y: start.y },
     timerFrames: typeof timer === 'number' && timer > 0 ? timer * 60 : null,
     slippery: Boolean(mapProp('slippery')),
+    flicker: Boolean(mapProp('flicker')),
   };
 }
