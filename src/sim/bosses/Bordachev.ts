@@ -25,9 +25,10 @@ export interface BordachevWorld extends BossWorld {
 }
 
 /**
- * Кран «принуждение к миру»: крюк (с коробкуом под ним, если несёт) проходит через экран
- * по горизонтали на высоте игрока и сталкивает героев (толчок делает мир). Прямоугольник —
- * крюк и коробку вместе, низ — чуть выше ног игрока. warn — показался у края и мигает.
+ * Кран «принуждение к миру»: крюк (с коробкой под ним, если несёт) проходит через экран
+ * по горизонтали на высоте игрока и кладёт коробку перед ним. Героев не толкает и не ранит
+ * (отзыв пользователя; в ТЗ толкал). Прямоугольник — крюк и коробка вместе, низ — чуть выше
+ * ног игрока. warn — показался у края и мигает.
  */
 export interface Crane extends Rect {
   x: number;
@@ -51,8 +52,8 @@ export type BordachevState = 'intro' | 'stand' | 'telegraph' | 'recover' | 'jump
 /**
  * Босс 3: Тимофей Бордачёв. Арена — шахта трюма, все платформы поднимаются (как арена уровня 3
  * оригинала). Он прыгает с платформы на платформу ближе к высоте игрока и бросает глобус дугой
- * в точку, где игрок стоит. Раз в 6 с кран «принуждение к миру» проходит через экран и сталкивает героев,
- * роняя коробку — им и бить (ТЗ). 6 попаданий.
+ * в точку, где игрок стоит. Раз в 6 с кран «принуждение к миру» проходит через экран и приносит
+ * коробку — ей и бить. 6 попаданий.
  */
 export class Bordachev implements BossBase {
   readonly name = 'bordachev';
@@ -388,16 +389,24 @@ export class Bordachev implements BossBase {
   // ——— кран «принуждение к миру» ———
 
   /**
-   * Где кран роняет коробку: на платформу героя, чуть перед ним (со стороны крюка). Перепрыгнул
-   * крюк — коробка рядом; прижало к стене — тоже; столкнуло со средней — назад по плафонам.
+   * Платформа, на которую кран положит коробку: колонна героя (под ним или ближайшая), ярус
+   * героя или ниже — но не у самого верха и не у низа экрана. Всегда настоящая платформа:
+   * коробка никогда не падает в пропасть.
    */
-  private dropColumnX(feet: Point, fromLeft: boolean): number {
-    const ahead = fromLeft ? -C.crane.dropAhead : C.crane.dropAhead;
-    const under = this.ledges.find(
-      (l) => feet.x >= l.x && feet.x < l.x + l.w && Math.abs(l.y - feet.y) < 2,
+  private dropLedge(feet: Point, view: Rect): Ledge | null {
+    const K = C.crane;
+    const top = view.y + K.minFromTop;
+    const bottom = view.y + view.h - K.minFromBottom;
+    const colX = (l: Ledge) => l.x + l.w / 2;
+    const ok = this.ledges.filter((l) => l.y >= top && l.y <= bottom);
+    if (ok.length === 0) return null;
+    // Колонна героя: та, над которой он стоит, иначе ближайшая.
+    const col = ok.reduce((best, l) =>
+      Math.abs(colX(l) - feet.x) < Math.abs(colX(best) - feet.x) ? l : best,
     );
-    if (!under) return feet.x + ahead;
-    return Math.min(under.x + under.w - 8, Math.max(under.x + 8, feet.x + ahead));
+    const inCol = ok.filter((l) => l.x === col.x).sort((a, b) => a.y - b.y);
+    // Ярус под ногами героя или ближайший ниже; если ниже нет — самый нижний подходящий.
+    return inCol.find((l) => l.y >= feet.y - 2) ?? inCol[inCol.length - 1]!;
   }
 
   private updateCrane(world: BordachevWorld): void {
@@ -409,25 +418,25 @@ export class Bordachev implements BossBase {
       this.craneTimer = this.scaled(K.everyFrames);
       const feet = world.targetFeet(this);
       if (!feet) return;
-      // Заходит с дальней от игрока стороны, по пути роняет коробку на середину и толкает героя
-      // к краю экрана (ТЗ: «толкает игроков к краю»).
+      // Заходит с дальней от игрока стороны и кладёт коробку на его платформу перед ним.
       const fromLeft = feet.x >= v.x + v.w / 2;
       const carrying = world.ammoInView() < K.maxCases;
       const h = carrying ? K.h * 2 : K.h;
-      // Крюк едет вверх вместе с шахтой. Герой у самого верха экрана сейчас упадёт на ярус
-      // ниже — крюк идёт по тому ярусу, чтобы не уехать за экран.
-      let level = feet.y;
-      while (level < v.y + K.minFromTop) level += K.levelStep;
+      // Крюк едет вверх вместе с шахтой — на высоте платформы, куда положит коробку.
+      const ledge = this.dropLedge(feet, v);
+      if (!ledge) return;
+      const ahead = fromLeft ? -K.dropAhead : K.dropAhead;
+      const dropX = Math.min(ledge.x + ledge.w - 8, Math.max(ledge.x + 8, feet.x + ahead));
       this.crane = {
         x: fromLeft ? v.x - K.w + 6 : v.x + v.w - 6,
-        y: level - 2 - h,
+        y: ledge.y - 2 - h,
         w: K.w,
         h,
         vx: fromLeft ? K.speed : -K.speed,
         phase: 'warn',
         timer: K.warnFrames,
         carrying,
-        dropX: this.dropColumnX(feet, fromLeft),
+        dropX,
       };
       world.emit({ type: 'sfx', name: 'trigger' });
       return;
@@ -440,7 +449,7 @@ export class Bordachev implements BossBase {
     c.x += c.vx;
     const after = c.x + c.w / 2;
     if (c.carrying && (before - c.dropX) * (after - c.dropX) <= 0) {
-      // Коробка отцепился: низ — там, где был низ коробкуа (над платформой), крюк остался вверху.
+      // Коробка отцепилась: низ — над платформой (на 2 px выше), крюк остался вверху.
       c.carrying = false;
       world.dropAmmo({ x: c.dropX, y: c.y + c.h });
       c.h = K.h;

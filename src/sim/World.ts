@@ -162,7 +162,6 @@ export class World implements BossWorld, BordachevWorld {
       const input = inputs[p.id];
       if (input && !p.out) p.update(input, this);
     }
-    this.pushByCrane();
     this.syncCarried();
     this.afterPlayersMechanisms();
 
@@ -269,20 +268,6 @@ export class World implements BossWorld, BordachevWorld {
 
   ammoInView(): number {
     return this.items.filter((i) => i.state !== 'gone' && this.camera.sees(i, 0)).length;
-  }
-
-  /**
-   * Кран «принуждение к миру» сталкивает героев: кто попал под крюк, оказывается перед ним
-   * (укрытие в ящике не спасает — ТЗ). Перепрыгнуть крюк можно.
-   */
-  private pushByCrane(): void {
-    const c = this.boss instanceof Bordachev ? this.boss.crane : null;
-    if (!c || c.phase !== 'pass') return;
-    for (const p of this.players) {
-      if (!p.active || p.state === 'held' || p.state === 'respawn' || !overlaps(p, c)) continue;
-      p.x = c.vx > 0 ? c.x + c.w : c.x - p.w;
-      this.camera.clamp(p);
-    }
   }
 
   /** Где возрождаться: на арене rise — на платформе средней колонны в середине экрана. */

@@ -4,11 +4,11 @@ import { RISING_ARENA } from '../src/config/camera';
 import { PLAYER_PHYSICS as P } from '../src/config/physics';
 import { LEVELS } from '../src/data/levels';
 import { Bordachev } from '../src/sim/bosses/Bordachev';
-import { overlaps } from '../src/sim/geom';
 import { parseTiledLevel, type TiledMap } from '../src/sim/level';
 import type { Player } from '../src/sim/Player';
 import { World } from '../src/sim/World';
 import type { Action } from '../src/systems/InputState';
+import { Rng } from '../src/sim/Rng';
 import { TestInput } from './helpers';
 
 const map = (): TiledMap => LEVELS[3]!.at(-1)!.map;
@@ -171,7 +171,7 @@ describe('Bordachev: jumps ledge to ledge, throws a globe at you, the crane push
     expect(throws).toBeGreaterThan(10);
   });
 
-  it('every 6 s the crane passes: warns at the edge, pushes the hero toward the edge, drops a case on a ledge; no damage', () => {
+  it('every 6 s the crane passes: warns at the edge, does not push the hero, drops a box right before them; no damage', () => {
     const w = arenaWorld();
     w.resume();
     const b = boss(w);
@@ -193,47 +193,60 @@ describe('Bordachev: jumps ledge to ledge, throws a globe at you, the crane push
       if (c?.phase === 'warn') warn++;
       if (Math.abs(p.x - x0) > 20) pushed = true;
       const dropped = w.items.find((it) => it.kind === 'box');
-      if (dropped?.state === 'resting' && w.camera.sees(dropped, 0)) caseRested = true;
+      if (
+        dropped?.state === 'resting' &&
+        Math.abs(dropped.y + dropped.h - feetOf(p)) < 1 &&
+        Math.abs(centerOf(dropped) - centerOf(p)) <= C.crane.dropAhead + 1
+      )
+        caseRested = true;
     }
     expect(appeared).toBeGreaterThan(C.crane.everyFrames - 10);
     expect(appeared).toBeLessThan(C.crane.everyFrames + 10);
     expect(warn).toBeGreaterThanOrEqual(BOSS_RULES.minTelegraphFrames);
-    expect(pushed).toBe(true);
+    expect(pushed).toBe(false);
     expect(p.vitals.hearts).toBe(3);
-    // Кейс лёг на платформу на экране (потом его уносит вверх вместе с ней).
+    // Коробка легла на платформу героя прямо перед ним.
     expect(caseRested).toBe(true);
-  });
-
-  it('hiding in a box does not protect from the crane (TZ)', () => {
-    const w = arenaWorld();
-    w.resume();
-    const b = boss(w);
-    const p = w.players[0]!;
-    const input = new TestInput();
-    // Дать герою ящик и спрятаться.
-    p.placeAt(128, 160); // средняя колонна
-    w.dropAmmo({ x: centerOf(p) + 10, y: feetOf(p) });
-    for (let i = 0; i < 30; i++) w.step({ 1: input.hold() });
-    p.facing = 1;
-    w.step({ 1: input.hold('right', 'action') });
-    w.step({ 1: input.hold() });
-    w.step({ 1: input.hold('down') });
-    expect(p.state).toBe('hidden');
-    let pushed = false;
-    for (let i = 0; i < C.crane.everyFrames + 300 && !pushed; i++) {
-      w.projectiles = [];
-      const before = p.x;
-      w.step({ 1: input.hold('down') });
-      if (b.crane?.phase === 'pass' && overlaps(b.crane, { ...p, x: before })) pushed = true;
-      if (b.crane?.phase === 'pass' && Math.abs(p.x - before) > 1.5) pushed = true;
-    }
-    expect(pushed).toBe(true);
   });
 });
 
+describe('the crane never drops a box into the void', () => {
+  for (const seed of [1, 2, 3]) {
+    it(`a hero running and jumping at random for 3 min: every box lands on a ledge on screen (seed ${seed})`, () => {
+      const w = arenaWorld(1, seed);
+      w.resume();
+      w.setGod(true);
+      const input = new TestInput();
+      const rng = new Rng(seed * 7);
+      const pool: Action[][] = [
+        ['left'],
+        ['right'],
+        ['jump'],
+        ['left', 'jump'],
+        ['right', 'jump'],
+        [],
+      ];
+      let keys: Action[] = [];
+      const seen = new Map<object, boolean>();
+      for (let f = 0; f < 60 * 180; f++) {
+        if (f % 20 === 0) keys = pool[rng.int(0, pool.length - 1)]!;
+        w.step({ 1: input.hold(...keys) });
+        for (const it of w.items) {
+          if (!it.fromCrane && !seen.has(it)) continue;
+          if (!seen.has(it)) seen.set(it, false);
+          if (it.state === 'resting' && w.camera.sees(it, 0)) seen.set(it, true);
+        }
+      }
+      expect(seen.size).toBeGreaterThanOrEqual(2);
+      const lost = [...seen.values()].filter((landed) => !landed).length;
+      expect(lost).toBe(0);
+    });
+  }
+});
+
 /**
- * Бот на одних кнопках, тактика «у стены»: стоит у внешней стены боковой колонны (крюк крана
- * прижимает к стене, а не сталкивает, и кладёт коробку рядом), берёт коробку и бросает в
+ * Бот на одних кнопках, тактика «у стены»: стоит у внешней стены боковой колонны (кран кладёт
+ * коробку рядом), берёт коробку и бросает в
  * Бордачёва, когда тот на линии броска (с прыжка, если чуть выше). От глобусов — прыжком.
  */
 function botKeys(w: World, p: Player, b: Bordachev, prev: Action[]): Action[] {
