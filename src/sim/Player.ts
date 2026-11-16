@@ -1,4 +1,5 @@
 import { ENEMIES } from '../config/enemies';
+import { FREEZER } from '../config/mechanisms';
 import { PLAYER_PHYSICS as P } from '../config/physics';
 import type { HeroId } from '../systems/Flow';
 import type { Action, PlayerId } from '../systems/InputState';
@@ -203,7 +204,14 @@ export class Player implements Body {
     if (dir !== 0) this.facing = dir > 0 ? 1 : -1;
     const base = heavy ? P.walkSpeedHeavyItem : this.carrying ? P.walkSpeedLightItem : P.walkSpeed;
     const slow = 1 / (1 + this.slowStacks);
-    this.vx = this.crouching ? 0 : dir * base * slow;
+    const target = this.crouching ? 0 : dir * base * slow;
+    if (this.onGround && world.onIce(this)) {
+      // Скользкий пол холодильника: разгон и торможение не сразу (ТЗ: «инерция 0,05»).
+      const d = target - this.vx;
+      this.vx += Math.max(-FREEZER.ice.accel, Math.min(FREEZER.ice.accel, d));
+    } else {
+      this.vx = target;
+    }
 
     // Прыжок, спрыгивание с тонкой платформы.
     if (this.onGround) this.coyoteTimer = P.coyoteFrames;

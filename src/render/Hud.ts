@@ -12,6 +12,15 @@ const BOSS_BAR = { width: 96, height: 4, y: 16 } as const;
 /** Шкала паники (арена Уралова): под «хронометражем». Мигает, пока управление инвертировано. */
 const PANIC_BAR = { width: 64, height: 3, y: 24, labelGap: 4, blinkFrames: 8 } as const;
 
+/** С какого остатка таймер краснеет, кадры. */
+const TIMER_WARN_FRAMES = 30 * 60;
+
+/** Кадры → «2'59» (ТЗ: формат таймера). */
+export function formatTimer(frames: number): string {
+  const sec = Math.max(0, Math.ceil(frames / 60));
+  return `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}`;
+}
+
 /**
  * HUD поверх игры, как в оригинале: внизу слева — инициал и сердечки игрока 1,
  * справа — игрока 2; вверху по центру на арене — «хронометраж» босса.
@@ -28,6 +37,9 @@ export class Hud {
   private readonly panicLabel: Phaser.GameObjects.BitmapText;
   private readonly panicBg: Phaser.GameObjects.Rectangle;
   private readonly panicBar: Phaser.GameObjects.Rectangle;
+  /** Таймер холодильника (уровень 4) — вверху справа, как в оригинале: «2'48». */
+  private readonly timer: Phaser.GameObjects.BitmapText;
+  private readonly timerBg: Phaser.GameObjects.Rectangle;
 
   constructor(
     scene: Phaser.Scene,
@@ -84,9 +96,25 @@ export class Hud {
         .rectangle(px, PANIC_BAR.y, PANIC_BAR.width, PANIC_BAR.height, PALETTE.red)
         .setOrigin(0),
     ).setVisible(false);
+    // Чёрная плашка под цифрами: иней на стенке белый, без неё таймер теряется.
+    this.timerBg = fix(
+      scene.add.rectangle(DISPLAY.width - MARGIN + 2, MARGIN - 2, 1, 12, PALETTE.black),
+    )
+      .setOrigin(1, 0)
+      .setVisible(world.timeLeft !== null);
+    this.timer = fix(uiText(scene, DISPLAY.width - MARGIN, MARGIN, ''))
+      .setOrigin(1, 0)
+      .setVisible(world.timeLeft !== null);
   }
 
   update(): void {
+    const left = this.world.timeLeft;
+    if (left !== null) {
+      this.timer.setText(formatTimer(left));
+      this.timerBg.setSize(this.timer.width + 4, 12).setOrigin(1, 0);
+      // Последние 30 секунд — красным.
+      this.timer.setTint(left <= TIMER_WARN_FRAMES ? PALETTE.red : PALETTE.white);
+    }
     for (const { p, initial, hearts } of this.players) {
       const v = p.vitals;
       initial.setTint(p.out ? PALETTE.gray : PALETTE.white);

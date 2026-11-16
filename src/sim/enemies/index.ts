@@ -6,6 +6,8 @@ import { Cable } from './Cable';
 import { Crab } from './Crab';
 import { Gull } from './Gull';
 import { Headline } from './Headline';
+import { Icicle } from './Icicle';
+import { Phone } from './Phone';
 import { Rigger } from './Rigger';
 import type { Enemy, EnemyKind } from './Enemy';
 
@@ -18,6 +20,8 @@ const FACTORIES: Record<EnemyKind, (at: Point, spawnId: number) => Enemy> = {
   crab: (at, id) => new Crab(at, id),
   gull: (at, id) => new Gull(at, id),
   rigger: (at, id) => new Rigger(at, id),
+  icicle: (at, id) => new Icicle(at, id),
+  phone: (at, id) => new Phone(at, id),
 };
 
 export function isEnemyKind(k: string): k is EnemyKind {

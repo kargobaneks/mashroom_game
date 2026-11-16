@@ -24,7 +24,7 @@ export interface Segment extends Rect {
 /** Точка появления сущности. Координата — низ-центр (ноги). */
 export interface SpawnPoint extends Point {
   readonly id: number;
-  readonly type: 'enemy' | 'item' | 'pickup' | 'bossPoint' | 'lift' | 'floater' | 'ammo';
+  readonly type: 'enemy' | 'item' | 'pickup' | 'bossPoint' | 'lift' | 'floater' | 'ammo' | 'melt';
   readonly kind: string;
   /** Для ящика: что под ним спрятано (появляется, когда ящик поднимают). */
   readonly contains?: string;
@@ -40,6 +40,10 @@ export interface LevelData {
   readonly spawns: readonly SpawnPoint[];
   readonly zones: readonly Zone[];
   readonly playerStart: Point;
+  /** Таймер части, кадры (свойство карты `timer`, в секундах); null — без таймера. */
+  readonly timerFrames: number | null;
+  /** Сплошной пол скользкий (свойство карты `slippery`). */
+  readonly slippery: boolean;
 }
 
 // Минимальная схема Tiled JSON, которую мы читаем.
@@ -65,6 +69,7 @@ interface TiledLayer {
   objects?: TiledObject[];
 }
 export interface TiledMap {
+  properties?: TiledProperty[];
   width: number;
   height: number;
   tilewidth: number;
@@ -101,6 +106,7 @@ const SPAWN_TYPES: readonly SpawnPoint['type'][] = [
   'lift',
   'floater',
   'ammo',
+  'melt',
 ];
 
 /** Разобрать карту Tiled: слои solid / oneway / hazard, objects и camera. */
@@ -157,5 +163,15 @@ export function parseTiledLevel(map: TiledMap): LevelData {
     }
   }
 
-  return { grid, segments, spawns, zones, playerStart: { x: start.x, y: start.y } };
+  const mapProp = (name: string) => map.properties?.find((p) => p.name === name)?.value;
+  const timer = mapProp('timer');
+  return {
+    grid,
+    segments,
+    spawns,
+    zones,
+    playerStart: { x: start.x, y: start.y },
+    timerFrames: typeof timer === 'number' && timer > 0 ? timer * 60 : null,
+    slippery: Boolean(mapProp('slippery')),
+  };
 }

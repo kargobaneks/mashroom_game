@@ -39,6 +39,8 @@ export interface TestWorldOpts {
   zones?: readonly Zone[];
   segments?: readonly Segment[];
   start?: { x: number; y: number };
+  timerFrames?: number | null;
+  slippery?: boolean;
 }
 
 export function makeWorld(o: TestWorldOpts = {}): World {
@@ -59,6 +61,8 @@ export function makeWorld(o: TestWorldOpts = {}): World {
       spawns: (o.spawns ?? []).map((s, i) => ({ ...s, id: i + 1 })),
       zones: o.zones ?? [],
       playerStart: o.start ?? { x: 40, y: 208 },
+      timerFrames: o.timerFrames ?? null,
+      slippery: o.slippery ?? false,
     },
     o.players ?? [{ id: 1, hero: 'sergey' }],
   );

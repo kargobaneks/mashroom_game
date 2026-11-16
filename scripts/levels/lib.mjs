@@ -17,6 +17,8 @@ export class MapBuilder {
     };
     this.objects = [];
     this.camera = [];
+    /** Свойства карты (таймер, скользкий пол…). */
+    this.properties = {};
     this.nextId = 1;
     /** Арт уровня (фон и мебель) — один большой холст, потом режется на тайлы. */
     this.art = new Pix(cols * TILE, rows * TILE);
@@ -156,6 +158,16 @@ export class MapBuilder {
       tilewidth: TILE,
       tileheight: TILE,
       infinite: false,
+      ...(Object.keys(this.properties).length > 0
+        ? {
+            properties: Object.entries(this.properties).map(([name, value]) => ({
+              name,
+              type:
+                typeof value === 'number' ? 'int' : typeof value === 'boolean' ? 'bool' : 'string',
+              value,
+            })),
+          }
+        : {}),
       nextlayerid: 7,
       nextobjectid: this.nextId,
       tilesets: [

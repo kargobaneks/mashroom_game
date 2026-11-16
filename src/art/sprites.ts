@@ -1088,6 +1088,123 @@ const claw: SpriteDef = {
   },
 };
 
+// ——— Уровень 4 «Заморозка-2007» ———
+
+const ICICLE_HANG = [
+  'DDDDDDDD',
+  'DWWIIIID',
+  'DWWIIIID',
+  '.DWIIID.',
+  '.DWIIID.',
+  '.DWIIID.',
+  '..DWID..',
+  '..DWID..',
+  '..DWID..',
+  '..DWID..',
+  '..DWID..',
+  '...DWD..',
+  '...DWD..',
+  '...DID..',
+  '....D...',
+  '........',
+];
+
+/** Сосулька: висит под трубой, перед падением дрожит. */
+const icicle: SpriteDef = {
+  w: 8,
+  h: 16,
+  palette: { D: 0x000000, W: 0xfcfcfc, I: 0xa4e4fc },
+  frames: {
+    hang: ICICLE_HANG,
+    shake: ICICLE_HANG.map((r, i) => (i === 0 ? r : `.${r.slice(0, 7)}`)),
+  },
+};
+
+const PHONE_BODY = [
+  '..DDDDDDDD..',
+  '..DGGGGGGD..',
+  '..DGIIIIGD..',
+  '..DGDIIDGD..',
+  '..DGIIIIGD..',
+  '..DGIDDIGD..',
+  '..DGGGGGGD..',
+  '.DDDDDDDDDD.',
+  '.DGGGGGGGGD.',
+  '.DGDGDGDGGD.',
+  '.DGGGGGGGGD.',
+  '.DGDGDGDGGD.',
+  '.DGGGGGGGGD.',
+  '.DDDDDDDDDD.',
+];
+
+/** Замороженный телефон-раскладушка: открыт, хмурый экран, скользит, из-под него летит лёд. */
+const phone: SpriteDef = {
+  w: 12,
+  h: 16,
+  palette: { D: 0x000000, G: 0xbcbcbc, I: 0xa4e4fc },
+  frames: {
+    slide1: [...PHONE_BODY, 'IIIIIIIIIIII', 'I.I.I.I.I.I.'],
+    slide2: [...PHONE_BODY, 'IIIIIIIIIIII', '.I.I.I.I.I.I'],
+  },
+};
+
+/** Ледяной блок 32×16 с вмороженной вещью 2007 года: рисунок вещи — ASCII 32×16 поверх льда. */
+function iceBlock(item: readonly string[]): string[] {
+  const out: string[] = [];
+  for (let y = 0; y < 16; y++) {
+    let row = '';
+    for (let x = 0; x < 32; x++) {
+      const edge = x === 0 || y === 0 || x === 31 || y === 15;
+      const glint = (x + y) % 9 === 0 && y < 6;
+      const ch = item[y]?.[x] ?? '.';
+      row += edge ? 'D' : ch !== '.' ? ch : glint || y === 1 ? 'W' : 'I';
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+/** Компакт-диск 2007-го. */
+const ICE_CD = [
+  '',
+  '',
+  '',
+  '            DDDDDDD',
+  '          DDWWWWWWWDD',
+  '         DWWWWWWWWWWWD',
+  '         DWWWWDDDWWWWD',
+  '         DWWWDD.DDWWWD',
+  '         DWWWWDDDWWWWD',
+  '         DWWWWWWWWWWWD',
+  '          DDWWWWWWWDD',
+  '            DDDDDDD',
+].map((r) => r.replace(/ /g, '.'));
+
+/** Плеер с колёсиком, как у всех в 2007-м. */
+const ICE_PLAYER = [
+  '',
+  '',
+  '             DDDDDDD',
+  '             DWWWWWD',
+  '             DWDDDWD',
+  '             DWDDDWD',
+  '             DWWWWWD',
+  '             DWDDDWD',
+  '             DDWWWDD',
+  '             DDWDWDD',
+  '             DDWWWDD',
+  '             DWDDDWD',
+  '             DDDDDDD',
+].map((r) => r.replace(/ /g, '.'));
+
+/** Тающая платформа уровня 4: вещь 2007 года во льду. */
+const iceblock: SpriteDef = {
+  w: 32,
+  h: 16,
+  palette: { D: 0x000000, W: 0xfcfcfc, I: 0xa4e4fc },
+  frames: { cd: iceBlock(ICE_CD), player: iceBlock(ICE_PLAYER) },
+};
+
 export const SPRITES = {
   bot,
   asterisk,
@@ -1114,6 +1231,9 @@ export const SPRITES = {
   pump,
   jug,
   claw,
+  icicle,
+  phone,
+  iceblock,
 } as const satisfies Record<string, SpriteDef>;
 
 export type SpriteId = keyof typeof SPRITES;

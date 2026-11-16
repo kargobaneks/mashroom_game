@@ -74,6 +74,8 @@ const ENEMY_FRAMES: Record<EnemyKind, readonly [string, string]> = {
   crab: ['walk1', 'walk2'],
   gull: ['fly1', 'fly2'],
   rigger: ['idle', 'idle'],
+  icicle: ['hang', 'hang'],
+  phone: ['slide1', 'slide2'],
 };
 
 function alt(frame: number, per: number, a: string, b: string): string {
@@ -223,6 +225,19 @@ export class LevelView {
       draw(pr, { id: pr.kind, frame: 'idle', rect: pr, depth: DEPTH.projectile });
     for (const l of w.mech.lifts)
       draw(l, { id: 'pump', frame: 'idle', rect: l, depth: DEPTH.mechanism });
+    // Тающие платформы: тают — дрожат и бледнеют, растаяли — не видны.
+    for (const m of w.mech.melts) {
+      const melting = m.state === 'melting';
+      const jitter = melting && f % 6 < 3 ? 1 : 0;
+      draw(m, {
+        id: 'iceblock',
+        frame: m.item === 'player' ? 'player' : 'cd',
+        rect: { x: m.x + jitter, y: m.y, w: m.w, h: m.h },
+        depth: DEPTH.mechanism,
+        visible: m.active,
+        alpha: melting ? 0.35 + 0.65 * m.left : 1,
+      });
+    }
     for (const fl of w.mech.floaters) {
       if (fl.active) draw(fl, { id: 'jug', frame: 'idle', rect: fl, depth: DEPTH.mechanism });
     }
@@ -352,7 +367,7 @@ export class LevelView {
       rect: e,
       depth: DEPTH.enemy,
       flip: e.facing < 0,
-      visible: !frozen || blink(e.stun),
+      visible: !e.hidden && (!frozen || blink(e.stun)),
       alpha: frozen ? 0.6 : 1,
     };
   }

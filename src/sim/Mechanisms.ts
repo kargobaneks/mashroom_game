@@ -1,4 +1,4 @@
-import { MECHANISMS } from '../config/mechanisms';
+import { FREEZER, MECHANISMS } from '../config/mechanisms';
 import type { Rect } from './geom';
 import { overlaps } from './geom';
 import type { LevelData, Zone } from './level';
@@ -175,9 +175,64 @@ export class Floater extends MovingPlatform {
   }
 }
 
+/** Состояние тающей платформы: стоит, тает (после касания), растаяла (ждёт возврата). */
+export type MeltState = 'solid' | 'melting' | 'gone';
+
+/**
+ * Тающая платформа (уровень 4, ТЗ): замороженная вещь 2007 года. Встал — через 2 с растаяла,
+ * через 4 с намёрзла снова. Стоит на месте; на неё встают сверху, снизу проходят насквозь.
+ */
+export class Melt extends MovingPlatform {
+  x: number;
+  y: number;
+  readonly w = FREEZER.melt.width;
+  readonly h = FREEZER.melt.height;
+  state: MeltState = 'solid';
+  timer = 0;
+
+  constructor(
+    /** Низ-центр точки — верх платформы по центру. */
+    cx: number,
+    top: number,
+    /** Что вморожено: рисунок. */
+    readonly item: string,
+  ) {
+    super();
+    this.x = cx - this.w / 2;
+    this.y = top;
+  }
+
+  get active(): boolean {
+    return this.state !== 'gone';
+  }
+
+  /** Доля «прочности», пока тает: 1 → 0. */
+  get left(): number {
+    return this.state === 'melting' ? this.timer / FREEZER.melt.meltFrames : 1;
+  }
+
+  /** Шаг после игроков: кто-то встал — начинает таять; растаявшая отсчитывает возврат. */
+  update(stood: boolean): void {
+    if (this.state === 'solid') {
+      if (stood) {
+        this.state = 'melting';
+        this.timer = FREEZER.melt.meltFrames;
+      }
+    } else if (--this.timer <= 0) {
+      if (this.state === 'melting') {
+        this.state = 'gone';
+        this.timer = FREEZER.melt.goneFrames;
+      } else {
+        this.state = 'solid';
+      }
+    }
+  }
+}
+
 /** Все механизмы части уровня. */
 export interface Mechanisms {
   lifts: Lift[];
+  melts: Melt[];
   floods: Flood[];
   floaters: Floater[];
   /** Зоны-триггеры: сработавшие — true. */
@@ -194,6 +249,7 @@ export function buildMechanisms(level: LevelData): Mechanisms {
   }
   return {
     lifts: level.spawns.filter((s) => s.type === 'lift').map((s) => new Lift(s.x, s.y)),
+    melts: level.spawns.filter((s) => s.type === 'melt').map((s) => new Melt(s.x, s.y, s.kind)),
     floods,
     floaters,
     triggers: level.zones

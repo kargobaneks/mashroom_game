@@ -76,6 +76,8 @@ export class World implements BossWorld, BordachevWorld {
   /** Сколько ещё кадров управление инвертировано (паника дошла до 100%). */
   panicFrames = 0;
   mech: Mechanisms;
+  /** Уровень 4: сколько кадров осталось до заморозки; null — таймера нет. */
+  timeLeft: number | null;
   /** Ящики, содержимое которых уже открыли (не прячем его снова при сбросе сегмента). */
   private readonly revealedSpawns = new Set<number>();
 
@@ -91,6 +93,7 @@ export class World implements BossWorld, BordachevWorld {
     const s = level.playerStart;
     this.players = setup.map((p, i) => new Player(p.id, p.hero, s.x + i * COOP_START_OFFSET, s.y));
     this.mech = buildMechanisms(level);
+    this.timeLeft = level.timerFrames;
     for (const c of carry) {
       const p = this.players.find((q) => q.id === c.id);
       if (!p) continue;
@@ -145,6 +148,7 @@ export class World implements BossWorld, BordachevWorld {
     if (this.frozen || this.gameOver) return;
     this.frame++;
     if (this.panicFrames > 0 && --this.panicFrames === 0) this.panic = 0;
+    this.tickTimer();
 
     const entered = this.camera.update(this.cameraBodies());
     if (entered) this.onSegmentEntered(entered);
@@ -354,6 +358,30 @@ export class World implements BossWorld, BordachevWorld {
     this.items.push(...fresh.filter((f) => !this.items.some((i) => i.spawnId === f.spawnId)));
   }
 
+  // ——— таймер холодильника (уровень 4) ———
+
+  /**
+   * ТЗ: «через три минуты превратитесь в лёд». Время вышло — все, кто в игре, теряют жизнь
+   * (замерзают), таймер начинается заново.
+   */
+  private tickTimer(): void {
+    if (this.timeLeft === null || this.level.timerFrames === null) return;
+    if (--this.timeLeft > 0) return;
+    this.timeLeft = this.level.timerFrames;
+    for (const p of this.players) if (p.active && p.state !== 'respawn') p.kill(this);
+  }
+
+  /** Стоит ли тело на скользком полу (сплошной тайл под ногами на уровне со льдом). */
+  onIce(b: Rect): boolean {
+    if (!this.level.slippery) return false;
+    const T = this.grid.size;
+    const row = Math.floor((b.y + b.h + 1) / T);
+    return (
+      this.grid.isSolid(Math.floor(b.x / T), row) ||
+      this.grid.isSolid(Math.floor((b.x + b.w - 1) / T), row)
+    );
+  }
+
   // ——— игроки ———
 
   private syncCarried(): void {
@@ -482,7 +510,8 @@ export class World implements BossWorld, BordachevWorld {
   private resolveThrownItems(): void {
     for (const it of this.items) {
       if (it.state !== 'thrown') continue;
-      const enemy = this.enemies.find((e) => e.alive && overlaps(it, e));
+      // Неуязвимых (сосулька) брошенный предмет не берёт — пролетает мимо.
+      const enemy = this.enemies.find((e) => e.alive && !e.invulnerable && overlaps(it, e));
       if (enemy) {
         enemy.alive = false;
         this.emit({ type: 'sfx', name: 'enemyHit' });
@@ -517,6 +546,11 @@ export class World implements BossWorld, BordachevWorld {
       if (!e.alive) continue;
       // Враг, коснувшийся ящика-укрытия, гибнет.
       if (this.items.some((it) => it.state === 'hiding' && overlaps(it, e))) {
+        if (e.invulnerable) {
+          // Сосулька разбивается о ящик-укрытие.
+          if (e.harmful) e.blocked(this);
+          continue;
+        }
         e.alive = false;
         this.emit({ type: 'sfx', name: 'enemyHit' });
         continue;
@@ -529,8 +563,8 @@ export class World implements BossWorld, BordachevWorld {
             p.addSlow();
             e.alive = false;
           }
-        } else {
-          this.damagePlayer(p, e.x + e.w / 2);
+        } else if (this.damagePlayer(p, e.x + e.w / 2)) {
+          e.touchedPlayer(this);
         }
         break;
       }
@@ -653,6 +687,9 @@ export class World implements BossWorld, BordachevWorld {
     const riders = this.riders();
     for (const l of this.mech.lifts)
       if (l.countLandings(riders)) this.emit({ type: 'sfx', name: 'lift' });
+    // Тающие платформы: тает от игрока, вставшего на неё.
+    const heroes = this.players.filter((p) => p.active && p.state !== 'held');
+    for (const m of this.mech.melts) m.update(heroes.some((p) => m.isRider(p)));
     for (const tr of this.mech.triggers) {
       if (tr.fired || !this.players.some((p) => p.active && overlaps(p, tr.zone))) continue;
       tr.fired = true;
@@ -669,6 +706,7 @@ export class World implements BossWorld, BordachevWorld {
     const out: Rect[] = [];
     for (const l of this.mech.lifts) if (l !== body) out.push(l);
     for (const fl of this.mech.floaters) if (fl.active && fl !== body) out.push(fl);
+    for (const m of this.mech.melts) if (m.active) out.push(m);
     return out;
   }
 

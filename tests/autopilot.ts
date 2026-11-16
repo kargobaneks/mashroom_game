@@ -15,7 +15,11 @@ export function autopilotKeys(w: World, p: Player, jumpHeld: boolean): Action[] 
   const dir = w.camera.segment.dir;
   const feet = p.y + p.h;
   const cx = p.x + p.w / 2;
-  const surface = (tx: number, ty: number) => g.isSolid(tx, ty) || g.isOneway(tx, ty);
+  // Тающие платформы (уровень 4) — тоже опора, пока не растаяли.
+  const melt = (tx: number, ty: number) =>
+    w.mech.melts.some((m) => m.active && m.y === ty * T && tx * T + T > m.x && tx * T < m.x + m.w);
+  const surface = (tx: number, ty: number) =>
+    g.isSolid(tx, ty) || g.isOneway(tx, ty) || melt(tx, ty);
   const press = (keys: Action[]): Action[] => (jumpHeld ? keys.filter((k) => k !== 'jump') : keys);
 
   if (dir === 'down') {
@@ -54,7 +58,8 @@ export function autopilotKeys(w: World, p: Player, jumpHeld: boolean): Action[] 
   let lowerLanding = false;
   for (let dy = 1; dy <= 3 && !lowerLanding; dy++) {
     for (let dx = 0; dx <= 2 && !lowerLanding; dx++)
-      lowerLanding = surface(probe + dx, groundRow + dy);
+      lowerLanding =
+        surface(probe + dx, groundRow + dy) && !g.isSolid(probe + dx, groundRow + dy - 1);
   }
   const hole = !surface(probe, groundRow) && !lowerLanding;
   // В падении над опорой (стол, ящик, стопка) — перестать лететь вперёд и встать на неё.
