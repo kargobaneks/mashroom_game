@@ -2421,14 +2421,1160 @@ const candle: SpriteDef = {
 };
 
 /**
- * Дмитрий Петровский — помощник перед ареной уровня 5 (на месте Рокфора). ЗАГЛУШКА: силуэт
- * собран из общей фигуры (тёмные волосы, тёмный пиджак), пока нет фото — образ по фото гостя.
+ * Дмитрий Петровский — помощник перед ареной уровня 5 (на месте Рокфора). По фото
+ * (`docs/refs/petrovsky_1.png`): бритая голова, густая тёмная борода лопатой, тёмный пиджак,
+ * светлая рубашка. Анфас, симметричный.
  */
+const PETROVSKY_HEAD = mirror([
+  '........DDDD',
+  '......DDSSSS',
+  '.....DSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '...DSSSSSSSS',
+  '...DSSSSSSSS',
+  '...DSSDDDSSS',
+  '...DSSSSSSSS',
+  '..DDSSDDSSSS',
+  '..DSDSSSSSSS',
+  '..DDYSSSSSSS',
+  '...DYSSSSSSD',
+  '...DYYYYYYYY',
+  '...YYYYYYYDD',
+  '...YYYYYYYYY',
+  '...YYYYYYYYY',
+  '....YYYYYYYY',
+  '.....YYYYYYY',
+  '......YYYYYY',
+]);
+const PETROVSKY_TORSO = mirror([
+  '.......DYYYY',
+  '....DDDDDYYY',
+  '..DDDDDDDSYY',
+  '.DDDDDDDDSSY',
+  '.DDDDDDDDDSS',
+  '.DD.DDDDDDSD',
+  '.DD.DDDDDDSD',
+  '.DD.DDDDDDDD',
+  '.DD.DDDDDDDD',
+  '.DD.DDDDDDDD',
+  '.DD.DDDDDDDD',
+  '.SS.DDDDDDDD',
+  '.SS.DDDDDDDD',
+  '....DDDDDDDD',
+]);
 const petrovsky: SpriteDef = {
   w: 24,
   h: 40,
   palette: { D: 0x000000, S: 0xfcbcb0, Y: 0x503000 },
-  frames: { idle: BORDACHEV_BODY },
+  frames: { idle: [...PETROVSKY_HEAD, ...PETROVSKY_TORSO, ...BORDACHEV_LEGS] },
+};
+
+// ——— Уровень 6 «Часовая башня» ———
+
+const MOLE_OUT = [
+  '................',
+  '.....DDDDDD.....',
+  '....DHHHHHHD....',
+  '...DHHHHHHHHD...',
+  '...DHHHHHHHHD...',
+  '..DDDDDDDDDDDD..',
+  '...DBBBBBBBBD...',
+  '...DBBBBBDBBD...',
+  '...DBBBBBDBBD...',
+  '...DBBBBBBBDDD..',
+  '..DBBBBBBBBBBD..',
+  '.DBBDBBBBBBDBBD.',
+  '.DBBBBBBBBBBBBD.',
+  '..DBBBBBBBBBBD..',
+  '..DBBBBBBBBBBD..',
+  '..DDDDDDDDDDDD..',
+];
+/** Крот-дедлайн в жёлтой каске (крот часовой башни оригинала). Смотрит вправо. */
+const mole: SpriteDef = {
+  w: 16,
+  h: 16,
+  palette: { D: 0x000000, H: 0xf8b800, B: 0x881400 },
+  frames: {
+    out: MOLE_OUT,
+    // Лапа с ключом поднята над каской.
+    throw: patch(MOLE_OUT, [
+      [12, 1, 'D'],
+      [13, 1, 'D'],
+      [12, 2, 'D'],
+      [13, 2, 'B'],
+      [14, 2, 'D'],
+      [13, 3, 'B'],
+      [14, 3, 'D'],
+      [13, 4, 'B'],
+      [14, 4, 'D'],
+      [14, 11, 'D'],
+      [13, 11, 'B'],
+    ]),
+    // Только каска над уступом.
+    hide: [
+      ...Array.from({ length: 10 }, () => '................'),
+      '.....DDDDDD.....',
+      '....DHHHHHHD....',
+      '...DHHHHHHHHD...',
+      '...DHHHHHHHHD...',
+      '..DDDDDDDDDDDD..',
+      '..DDDDDDDDDDDD..',
+    ],
+    // Выглядывает: каска и глаза.
+    peek: [
+      ...Array.from({ length: 6 }, () => '................'),
+      '.....DDDDDD.....',
+      '....DHHHHHHD....',
+      '...DHHHHHHHHD...',
+      '...DHHHHHHHHD...',
+      '..DDDDDDDDDDDD..',
+      '...DBBBBBDBBD...',
+      '...DBBBBBDBBD...',
+      '...DBBBBBBBDDD..',
+      '..DBBBBBBBBBBD..',
+      '..DDDDDDDDDDDD..',
+    ],
+  },
+};
+
+const RAT_BODY = [
+  '................',
+  '..........DD....',
+  '.........DGGD...',
+  '........DGGGGDD.',
+  '..DDDDDDGGGDGGGD',
+  '.DGGGGGGGGGGGGGD',
+  'DGGGGGGGGGGGGDD.',
+  'DGGGGGGGGGGGGD..',
+  '.DGGGGGGGGGGD...',
+  'D.DDDDDDDDDD....',
+];
+/** Крыса-напоминалка (электрокрыса оригинала): серая, хвост, искрит жёлтым. Смотрит вправо. */
+const rat: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, G: 0xbcbcbc, Y: 0xf8d878 },
+  frames: {
+    walk1: [...RAT_BODY, 'D..DD....DD.....', '.DD.............'],
+    walk2: [...RAT_BODY, 'D...DD..DD......', '.DD.............'],
+    spark1: patch(
+      [...RAT_BODY, 'D..DD....DD.....', '.DD.............'],
+      [
+        [3, 1, 'Y'],
+        [5, 2, 'Y'],
+        [14, 0, 'Y'],
+        [0, 3, 'Y'],
+        [15, 8, 'Y'],
+        [13, 10, 'Y'],
+        [7, 0, 'Y'],
+      ],
+    ),
+    spark2: patch(
+      [...RAT_BODY, 'D...DD..DD......', '.DD.............'],
+      [
+        [2, 2, 'Y'],
+        [6, 1, 'Y'],
+        [12, 0, 'Y'],
+        [15, 2, 'Y'],
+        [14, 9, 'Y'],
+        [1, 4, 'Y'],
+        [6, 11, 'Y'],
+      ],
+    ),
+  },
+};
+
+/** Гаечный ключ крота. */
+const wrench: SpriteDef = {
+  w: 8,
+  h: 8,
+  palette: { D: 0x000000, G: 0xbcbcbc },
+  frames: {
+    idle: [
+      '.DD.DD..',
+      'DGGDGGD.',
+      'DGGGGD..',
+      '.DGGGGD.',
+      '..DDGGGD',
+      '....DGGD',
+      '.....DGD',
+      '......D.',
+    ],
+  },
+};
+
+/** Разряд крысы — бежит по полу. */
+const bolt: SpriteDef = {
+  w: 12,
+  h: 8,
+  palette: { D: 0x000000, Y: 0xf8d878, W: 0xfcfcfc },
+  frames: {
+    idle: [
+      '...D....D...',
+      '..DYD..DYD..',
+      '.DYWYDDYWYD.',
+      'DYWDWYYWDWYD',
+      'DYD.DWWD.DYD',
+      '.D...DD...D.',
+      '............',
+      '............',
+    ],
+  },
+};
+
+/** Платформа на цепи: стальная доска на подвесах. */
+const chainPlatform: SpriteDef = {
+  w: 32,
+  h: 8,
+  palette: { D: 0x000000, G: 0xbcbcbc, B: 0x7c7c7c },
+  frames: {
+    idle: [
+      'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
+      'DGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGD',
+      'DGBGGGGGGGGGGGGGGGGGGGGGGGGGGBGD',
+      'DGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGD',
+      'DBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBD',
+      'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
+      '..............DDDD..............',
+      '..............DBBD..............',
+    ],
+  },
+};
+
+const GEAR_TOP = mirror([
+  '......DD',
+  '..DD.DYY',
+  '.DYYDDYY',
+  '.DYYYYYY',
+  '..DYYOOO',
+  'DDDYOOOO',
+  'DYYYOODD',
+  'DYYYOOD.',
+]);
+/** Шестерёнка Щелина (снаряд и предмет арены). */
+const gear: SpriteDef = {
+  w: 16,
+  h: 16,
+  palette: { D: 0x000000, Y: 0xf8b800, O: 0xac7c00 },
+  frames: { idle: [...GEAR_TOP, ...[...GEAR_TOP].reverse()] },
+};
+
+/**
+ * Павел Щелин на моноцикле-шестерне (страус часовой башни оригинала). По фото
+ * (`docs/refs/shchelin_1.png`): тёмные короткие волосы набок, высокий лоб, тонкие очки,
+ * короткая борода с усами, светлый свитер. Анфас; внизу — шестерня-колесо.
+ */
+const SHCHELIN_HEAD = [
+  '..........DDDDD.........',
+  '.......DDDDDDDDDDD......',
+  '.....DDDDDDDDDDDDDDD....',
+  '.....DDDDDDSSSSSSSDDD...',
+  '.....DDSSSSSSSSSSSSDD...',
+  '....SDDDDDDDDDDDDDDDDS..',
+  '....SDSSDSDSSDSSDSSDSS..',
+  '....SDSSSSDSSDSSSSSDSS..',
+  '.....DSSSSSSSSSSSSSSD...',
+  '.....DSSSDDDDDDDSSSSD...',
+  '......DDSSSDDDSSSDD.....',
+  '.......DDDDDDDDDDD......',
+];
+const SHCHELIN_TORSO = mirror([
+  '.......DCCDS',
+  '....CCCCCDSS',
+  '..CCCCCCCCDD',
+  '.CCDCCCCCCCC',
+  '.CCDCCCCCCCC',
+  '.SS.CCCCCCCC',
+  '....DDDDDDDD',
+  '.....DDD.DDD',
+]);
+/** Шестерня-колесо 12 рядов; turn — сдвиг зубцов (кадр вращения). */
+function unicycleGear(turn: number): string[] {
+  const rows: string[] = [];
+  for (let y = 0; y < 12; y++) {
+    let r = '';
+    for (let x = 0; x < 24; x++) {
+      const d = Math.hypot(x - 11.5, y - 5.5);
+      const a = Math.atan2(y - 5.5, x - 11.5) + turn;
+      const tooth = Math.cos(a * 8) > 0.2 ? 1.3 : 0;
+      if (d > 4.6 + tooth) r += '.';
+      else if (d < 1.3) r += 'D';
+      else if (d < 2.2) r += 'C';
+      else if (d > 3.8 + tooth) r += 'D';
+      else if (d < 2.9) r += 'D';
+      else r += 'C';
+    }
+    rows.push(r);
+  }
+  return rows;
+}
+const SHCHELIN_UPPER = [...SHCHELIN_HEAD, ...SHCHELIN_TORSO];
+const SHCHELIN_IDLE = [...SHCHELIN_UPPER, ...unicycleGear(0)];
+/**
+ * Павел Щелин на моноцикле-шестерне (страус часовой башни оригинала). По фото
+ * (`docs/refs/shchelin_1.png`): тёмные короткие волосы набок, высокий лоб, тонкие очки,
+ * короткая борода с усами, светлый свитер. Анфас; внизу — шестерня-колесо. Невысокий (32 px):
+ * через него, едущего навстречу, можно перепрыгнуть (отзыв пользователя).
+ */
+const shchelin: SpriteDef = {
+  w: 24,
+  h: 32,
+  palette: { D: 0x000000, S: 0xfcbcb0, C: 0xfce0a8 },
+  frames: {
+    idle: SHCHELIN_IDLE,
+    ride: [...SHCHELIN_UPPER, ...unicycleGear(Math.PI / 8)],
+    // Замах: правая рука (смотрит вправо) поднята над плечом.
+    aim: patch(SHCHELIN_IDLE, [
+      ...[15, 16, 17].flatMap(
+        (y) =>
+          [
+            [21, y, '.'],
+            [22, y, '.'],
+          ] as [number, number, string][],
+      ),
+      ...[8, 9, 10, 11, 12, 13, 14].flatMap(
+        (y) =>
+          [
+            [21, y, 'C'],
+            [22, y, 'C'],
+            [23, y, 'D'],
+          ] as [number, number, string][],
+      ),
+      [21, 6, 'S'],
+      [22, 6, 'S'],
+      [21, 7, 'S'],
+      [22, 7, 'S'],
+    ]),
+    // Попадание: зажмурился.
+    hit: patch(SHCHELIN_IDLE, [
+      [8, 6, 'S'],
+      [15, 6, 'S'],
+      [7, 7, 'D'],
+      [8, 7, 'D'],
+      [15, 7, 'D'],
+      [16, 7, 'D'],
+    ]),
+    // Освобождён: улыбается.
+    freed: patch(SHCHELIN_IDLE, [
+      [9, 10, 'D'],
+      [14, 10, 'D'],
+      [11, 10, 'S'],
+      [12, 10, 'S'],
+    ]),
+  },
+};
+
+// ——— Уровень 7 «Салун»: шахта и вагонетка ———
+
+/** Вагонетка: деревянный короб на колёсах, спереди рычаг. Рисуется поверх героя (он внутри). */
+const cart: SpriteDef = {
+  w: 32,
+  h: 20,
+  palette: { D: 0x000000, W: 0x881400, G: 0x7c7c7c },
+  frames: {
+    idle: [
+      '............................DD..',
+      '............................DGD.',
+      '.............................DGD',
+      '.............................DGD',
+      '............................DGD.',
+      '...........................DGD..',
+      '...........................DGD..',
+      '...........................DGD..',
+      'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
+      'DGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGD',
+      'DWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWD',
+      'DWDWWWWWWWWWDWWWWWWWDWWWWWWWWDWD',
+      'DWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWD',
+      'DGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGD',
+      '.DDDDDDDDDDDDDDDDDDDDDDDDDDDDDD.',
+      '...DDDD..................DDDD...',
+      '..DGGGGD................DGGGGD..',
+      '..DGDDGD................DGDDGD..',
+      '..DGGGGD................DGGGGD..',
+      '...DDDD..................DDDD...',
+    ],
+  },
+};
+
+const BOULDER_HALF = mirror([
+  '.....DDD',
+  '...DDGGG',
+  '..DGGGGG',
+  '.DGGWGGG',
+  '.DGWWGGG',
+  'DGGGGGGG',
+  'DGGGGGGD',
+  'DGGGGGGG',
+]);
+/** Валун под потолком шахты. */
+const boulder: SpriteDef = {
+  w: 16,
+  h: 16,
+  palette: { D: 0x000000, G: 0x7c7c7c, W: 0xbcbcbc },
+  frames: { idle: [...BOULDER_HALF, ...[...BOULDER_HALF].reverse()] },
+};
+
+const BALL_HALF = mirror([
+  '.....DDD',
+  '...DDDDD',
+  '..DDGGDD',
+  '.DDGGDDD',
+  '.DDGDDDD',
+  'DDDDDDDD',
+  'DDDDDDDD',
+  'DDDDDDDD',
+]);
+/** Ядро маятника (цепь рисует сцена). */
+const pendulum: SpriteDef = {
+  w: 16,
+  h: 16,
+  palette: { D: 0x000000, G: 0x7c7c7c },
+  frames: { idle: [...BALL_HALF, ...[...BALL_HALF].reverse()] },
+};
+
+/** Летучая мышь: машет крыльями, пикирует со сложенными. */
+const bat: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, P: 0x940084, R: 0xf83800 },
+  frames: {
+    fly1: [
+      'D..............D',
+      'DD............DD',
+      'DPD..........DPD',
+      'DPPD..DDDD..DPPD',
+      'DPPPDDPPPPDDPPPD',
+      'DPPPPPRPPRPPPPPD',
+      '.DPPPPPPPPPPPPD.',
+      '..DPPDPPPPDPPD..',
+      '...DD.DPPD.DD...',
+      '.......DD.......',
+      '................',
+      '................',
+    ],
+    fly2: [
+      '................',
+      '................',
+      '......DDDD......',
+      '.....DPPPPD.....',
+      '..DDDPRPPRPDDD..',
+      '.DPPPPPPPPPPPPD.',
+      'DPPPPPPPPPPPPPPD',
+      'DPPDDPPPPPPDDPPD',
+      'DPD..DPPPPD..DPD',
+      'DD....DPPD....DD',
+      'D......DD......D',
+      '................',
+    ],
+    dive: [
+      '......DDDD......',
+      '.....DPPPPD.....',
+      '.....PRPPRP.....',
+      '....DPPPPPPD....',
+      '...DPPPPPPPPD...',
+      '...DPPDPPDPPD...',
+      '...DPD.PP.DPD...',
+      '...DD..PP..DD...',
+      '.......DD.......',
+      '................',
+      '................',
+      '................',
+    ],
+  },
+};
+
+const SNAKE_BOX = [
+  'DDDDDDDDDDDDDDDD',
+  'DWWWWWWWWWWWWWWD',
+  'DWDDDDDDDDDDDDWD',
+  'DWDWWWWWWWWWWDWD',
+  'DWDWWWDDWWWWWDWD',
+  'DWDWWDWWDWWWWDWD',
+  'DWDWWWWDWWWWWDWD',
+  'DWDWWWDWWWWWWDWD',
+  'DWDWWWWWWWWWWDWD',
+  'DWDWWWDWWWWWWDWD',
+  'DWDWWWWWWWWWWDWD',
+  'DWDDDDDDDDDDDDWD',
+  'DWWWWWWWWWWWWWWD',
+  'DWDWWWWWWWWWWDWD',
+  'DWWWWWWWWWWWWWWD',
+  'DDDDDDDDDDDDDDDD',
+];
+/** Змея в коробке: коробка с «?», выскочила — зелёная голова с языком. */
+const snakeBox: SpriteDef = {
+  w: 16,
+  h: 16,
+  palette: { D: 0x000000, W: 0xe45c10, G: 0x00a800 },
+  frames: {
+    idle: SNAKE_BOX,
+    out: [
+      '.....DDDDDD.....',
+      '....DGGGGGGD....',
+      '...DGDGGGGDGD...',
+      '...DGGGGGGGGDD..',
+      '....DGGGGGGGGGD.',
+      '.....DDGGGDDDDW.',
+      '......DGGD..W.W.',
+      '......DGGD......',
+      'DDDDDDDGGDDDDDDD',
+      'DWWWWWDGGDWWWWWD',
+      'DWWWWWDGGDWWWWWD',
+      'DWDDDDDDDDDDDDWD',
+      'DWWWWWWWWWWWWWWD',
+      'DWDWWWWWWWWWWDWD',
+      'DWWWWWWWWWWWWWWD',
+      'DDDDDDDDDDDDDDDD',
+    ],
+  },
+};
+
+/** Дикобраз: иглы назад, бежит вправо. */
+const porcupine: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, B: 0x881400, W: 0xfce0a8 },
+  frames: {
+    walk1: [
+      '..D.D.D.........',
+      '.DWDWDWD........',
+      'DWBWBWBWDD......',
+      'DBWBWBWBBBD.....',
+      'WBBWBWBBBBBDD...',
+      'DBWBWBBBBBBBBD..',
+      'DBBBBBBBBBDBBBD.',
+      '.DBBBBBBBBBBBBBD',
+      '..DBBBBBBBBBBDD.',
+      '...DDDDDDDDDD...',
+      '...DD....DD.....',
+      '..DD......DD....',
+    ],
+    walk2: [
+      '..D.D.D.........',
+      '.DWDWDWD........',
+      'DWBWBWBWDD......',
+      'DBWBWBWBBBD.....',
+      'WBBWBWBBBBBDD...',
+      'DBWBWBBBBBBBBD..',
+      'DBBBBBBBBBDBBBD.',
+      '.DBBBBBBBBBBBBBD',
+      '..DBBBBBBBBBBDD.',
+      '...DDDDDDDDDD...',
+      '....DD..DD......',
+      '....DD..DD......',
+    ],
+  },
+};
+
+const MOTH_A = [
+  '.DD......DD.',
+  'DWWD....DWWD',
+  'DWWWDDDDWWWD',
+  'DWWWDGGDWWWD',
+  '.DWWDGGDWWD.',
+  '..DDDGGDDD..',
+  '.DWWDGGDWWD.',
+  '.DWDDGGDDWD.',
+  '..D..DD..D..',
+  '............',
+];
+/** Моль: бледные крылья. */
+const moth: SpriteDef = {
+  w: 12,
+  h: 10,
+  palette: { D: 0x000000, W: 0xfce0a8, G: 0x7c7c7c },
+  frames: {
+    fly1: MOTH_A,
+    fly2: [
+      '............',
+      '............',
+      '.DDD....DDD.',
+      'DWWWDDDDWWWD',
+      'DWWWDGGDWWWD',
+      '.DDDDGGDDDD.',
+      '.DWWDGGDWWD.',
+      '..DDDGGDDD..',
+      '.....DD.....',
+      '............',
+    ],
+  },
+};
+/** Моль-пикировщик — темнее, крылья сложены при пике. */
+const diveMoth: SpriteDef = {
+  w: 12,
+  h: 10,
+  palette: { D: 0x000000, W: 0xac7c00, G: 0x503000 },
+  frames: {
+    fly1: MOTH_A,
+    fly2: MOTH_A,
+    dive: [
+      '....DDDD....',
+      '...DGGGGD...',
+      '..DWDGGDWD..',
+      '..DWDGGDWD..',
+      '..DWDGGDWD..',
+      '...DDGGDD...',
+      '....DGGD....',
+      '.....DD.....',
+      '............',
+      '............',
+    ],
+  },
+};
+
+/** Снаряд моли. */
+const mothShot: SpriteDef = {
+  w: 6,
+  h: 6,
+  palette: { D: 0x000000, W: 0xfce0a8 },
+  frames: { idle: ['.DDDD.', 'DWWWWD', 'DWDDWD', 'DWDDWD', 'DWWWWD', '.DDDD.'] },
+};
+
+/** Игральная карта босса (снаряд и предмет): рубашка с абстрактным узором (ТЗ). */
+const card: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, W: 0xfcfcfc, R: 0xd82800 },
+  frames: {
+    idle: [
+      'DDDDDDDDDDDDDDDD',
+      'DWWWWWWWWWWWWWWD',
+      'DWRRRRRRRRRRRRWD',
+      'DWRWRWRWRWRWRRWD',
+      'DWRRWRWRWRWRWRWD',
+      'DWRWRWRWRWRWRRWD',
+      'DWRRWRWRWRWRWRWD',
+      'DWRWRWRWRWRWRRWD',
+      'DWRRWRWRWRWRWRWD',
+      'DWRRRRRRRRRRRRWD',
+      'DWWWWWWWWWWWWWWD',
+      'DDDDDDDDDDDDDDDD',
+    ],
+  },
+};
+
+// ——— Уровень 7: Соболев, Лука Е*ков (Третьяков), камео Стаса Васильева ———
+
+/** Поднятая правая рука (смотрит вправо) — замах перед броском карты. */
+function raiseArm(rows: readonly string[], sleeve: string): string[] {
+  return patch(rows, [
+    ...[25, 26, 27, 28, 29, 30, 31, 32].flatMap(
+      (y) =>
+        [
+          [21, y, '.'],
+          [22, y, '.'],
+        ] as [number, number, string][],
+    ),
+    ...[12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24].flatMap(
+      (y) =>
+        [
+          [20, y, 'D'],
+          [21, y, sleeve],
+          [22, y, sleeve],
+          [23, y, 'D'],
+        ] as [number, number, string][],
+    ),
+    [21, 10, 'S'],
+    [22, 10, 'S'],
+    [21, 11, 'S'],
+    [22, 11, 'S'],
+    [20, 10, 'D'],
+    [23, 10, 'D'],
+    [20, 11, 'D'],
+    [23, 11, 'D'],
+  ]);
+}
+/** Сидит за карточным столом: видно только по пояс (низ — за столом). */
+function seated(rows: readonly string[]): string[] {
+  return rows.map((r, y) => (y < 28 ? r : '.'.repeat(r.length)));
+}
+/** Глаза закрыты (удар) и улыбка (побеждён): глаза в строке 11, рот — 16. */
+const eyesShut = (rows: readonly string[]) =>
+  patch(rows, [
+    [7, 11, 'S'],
+    [16, 11, 'S'],
+    [6, 11, 'D'],
+    [8, 11, 'D'],
+    [15, 11, 'D'],
+    [17, 11, 'D'],
+  ]);
+
+const SOBOLEV_HEAD = mirror([
+  '........HHHH',
+  '......HHHHHH',
+  '.....HHHHHHH',
+  '....HHHHHHHH',
+  '....HHHHHHHH',
+  '....DHHHHHHS',
+  '....DHSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSDDDSSS',
+  '...DSSSSSSSS',
+  '...DSSSDSSSS',
+  '...DSSSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSD',
+  '....DSSSSSSS',
+  '.....DSSSDDD',
+  '......DSSSSS',
+  '.......DSSSS',
+  '........DDDD',
+]);
+const SOBOLEV_IDLE = [...SOBOLEV_HEAD, ...BORDACHEV_TORSO, ...BORDACHEV_LEGS];
+/**
+ * Николай Соболев (по фото `docs/refs/sobolev_1.png`): русые волосы зачёсаны вверх и назад,
+ * гладко выбрит, тёмный пиджак, светлая рубашка. Анфас.
+ */
+const sobolev: SpriteDef = {
+  w: 24,
+  h: 40,
+  palette: { D: 0x000000, S: 0xfcbcb0, H: 0x503000 },
+  frames: {
+    idle: SOBOLEV_IDLE,
+    aim: raiseArm(SOBOLEV_IDLE, 'D'),
+    hit: eyesShut(SOBOLEV_IDLE),
+    freed: patch(SOBOLEV_IDLE, [
+      [8, 16, 'D'],
+      [15, 16, 'D'],
+    ]),
+    sit: seated(SOBOLEV_IDLE),
+  },
+};
+
+const LUKA_HEAD = mirror([
+  '........DDDD',
+  '......DDSSSS',
+  '.....DSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSDDDSSS',
+  '...DSSSSSSSS',
+  '...DSSSDSSSS',
+  '...DSSSSSSSS',
+  '....DSSSSSSD',
+  '....DDSSSSSS',
+  '....DDDDDDDD',
+  '....DDDDSSSD',
+  '.....DDDDDDD',
+  '......DDDDDD',
+  '........DDDD',
+]);
+const LUKA_TORSO = mirror([
+  '..........DD',
+  '.......GGDDD',
+  '....GGGGGGDD',
+  '..GGGGGGGGGD',
+  '.GGGGGGGGGGD',
+  '.GG.GGGGGGGD',
+  '.GG.GGGGGGGG',
+  '.GG.GGGGGGGG',
+  '.GG.GGGGGGGG',
+  '.GG.GGGGGGGG',
+  '.GG.GGGGGGGG',
+  '.SS.GGGGGGGG',
+  '.SS.GGGGGGGG',
+  '....GGGGGGGG',
+]);
+const LUKA_IDLE = [...LUKA_HEAD, ...LUKA_TORSO, ...BORDACHEV_LEGS];
+/**
+ * Лука Е*ков — Андрей Третьяков (по фото `docs/refs/tretyakov_1.png`): бритая голова, тёмная
+ * борода с усами, серое худи поверх тёмной футболки. Анфас.
+ */
+const luka: SpriteDef = {
+  w: 24,
+  h: 40,
+  palette: { D: 0x000000, S: 0xfcbcb0, G: 0xbcbcbc },
+  frames: {
+    idle: LUKA_IDLE,
+    aim: raiseArm(LUKA_IDLE, 'G'),
+    hit: eyesShut(LUKA_IDLE),
+    freed: patch(LUKA_IDLE, [
+      [8, 16, 'S'],
+      [15, 16, 'S'],
+    ]),
+    sit: seated(LUKA_IDLE),
+  },
+};
+
+const VASILIEV_HEAD = mirror([
+  '.......DDDDD',
+  '.....DDD.DDD',
+  '....DDDDDDDD',
+  '...DDDDDDDDD',
+  '...DDDDDDDDD',
+  '....DDSDSSDS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSDDSSSS',
+  '...DSSSSSSSS',
+  '...DSSSDSSSS',
+  '...DSSSSSSSS',
+  '....DSSSSSSD',
+  '....DSDSSDDD',
+  '....DSSDSSSS',
+  '.....DSDSDSS',
+  '......DSSSSS',
+  '.......DSSSS',
+  '........DDDD',
+]);
+const VASILIEV_TORSO = mirror([
+  '..........DS',
+  '.......BBDSS',
+  '....BBBBBDSS',
+  '..BBBBBBBDSS',
+  '.BBBBBBBBDSS',
+  '.BB.BBBBBDSS',
+  '.BB.BBBDBDSS',
+  '.BB.BBBBBDSS',
+  '.BB.BBBBBDSS',
+  '.BB.BBBDBDSS',
+  '.BB.BBBBBDSS',
+  '.SS.BBBBBBBB',
+  '.SS.BBBBBBBB',
+  '....BBBBBBBB',
+]);
+/**
+ * Стас Васильев — камео за стойкой салуна (по фото `docs/refs/vasiliev_1.png`): тёмные кудри,
+ * щетина, бежевая рубашка нараспашку поверх светлой футболки.
+ */
+const vasiliev: SpriteDef = {
+  w: 24,
+  h: 40,
+  palette: { D: 0x000000, S: 0xfcbcb0, B: 0xd8b878 },
+  frames: {
+    idle: [...VASILIEV_HEAD, ...VASILIEV_TORSO, ...BORDACHEV_LEGS],
+    // За стойкой: видно по пояс.
+    bar: seated([...VASILIEV_HEAD, ...VASILIEV_TORSO, ...BORDACHEV_LEGS]),
+  },
+};
+
+// ——— Уровень 8 «Нейросеть» (Мир будущего оригинала) ———
+
+/** Кадр, нарисованный функцией: fn(x, y) → символ палитры или '.'. */
+function grid(w: number, h: number, fn: (x: number, y: number) => string): string[] {
+  return Array.from({ length: h }, (_, y) =>
+    Array.from({ length: w }, (_, x) => fn(x, y)).join(''),
+  );
+}
+
+/** Рамка: чёрный контур по краю прямоугольника w×h. */
+const edge = (x: number, y: number, w: number, h: number) =>
+  x === 0 || y === 0 || x === w - 1 || y === h - 1;
+
+/** Металлический блок: белый кубик с заклёпками (как в оригинале). */
+const metal: SpriteDef = {
+  w: 16,
+  h: 16,
+  palette: { D: 0x000000, W: 0xfcfcfc, G: 0xbcbcbc },
+  frames: {
+    idle: grid(16, 16, (x, y) => {
+      if (edge(x, y, 16, 16)) return 'D';
+      if ((x === 3 || x === 12) && (y === 3 || y === 12)) return 'D';
+      if (x === 14 || y === 14) return 'G';
+      if (x === 1 || y === 1) return 'W';
+      return (x + y) % 7 === 0 ? 'W' : 'G';
+    }),
+  },
+};
+
+/** Обломок от удара шара: кусок бетона с арматурой. */
+const scrap: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, G: 0x7c7c7c, W: 0xbcbcbc },
+  frames: {
+    idle: [
+      '....DDDD........',
+      '..DDWWWWDD..DD..',
+      '.DWWWGWWWWDDWD..',
+      'DWWGWWWWWGWWWD..',
+      'DWWWWWGWWWWWGDD.',
+      'DGWWWWWWWWGWWWWD',
+      'DGGWGWWWWWWWWGWD',
+      '.DGGGWWWGWWWWGGD',
+      '.DGGGGGGGGWGGGD.',
+      '..DGGDGGGGGGGD..',
+      '...DD.DDGGGDD...',
+      '.......DDDD.....',
+    ],
+  },
+};
+
+/** Камешек из рогатки. */
+const pebble: SpriteDef = {
+  w: 6,
+  h: 6,
+  palette: { D: 0x000000, G: 0xbcbcbc },
+  frames: { idle: ['.DDDD.', 'DGGGGD', 'DGGDGD', 'DGGGGD', 'DGDGGD', '.DDDD.'] },
+};
+
+const SLING_RAT = [
+  '................',
+  '..........DD....',
+  '.........DGGD...',
+  '........DGGGGD..',
+  '.......DGGGDGGD.',
+  '.......DGGGGGGGD',
+  '......DGGGGGGDD.',
+  '.....DGGGGGGD...',
+  '....DGGGGGGGD...',
+  '...DGGGGGGGGD...',
+  'D..DGGGGGGGGD...',
+  'D..DGGGGGGGD....',
+  '.D.DGGGGGGD.....',
+  '..DDGGGGGGD.....',
+  '....DD..DD......',
+  '...DDD.DDD......',
+];
+/** Крыса с рогаткой: серая, стоит на задних лапах, коричневая рогатка в лапе. */
+const slingRat: SpriteDef = {
+  w: 16,
+  h: 16,
+  palette: { D: 0x000000, G: 0xbcbcbc, B: 0x881400 },
+  frames: {
+    idle: patch(SLING_RAT, [
+      [12, 8, 'D'],
+      [13, 8, 'B'],
+      [14, 7, 'B'],
+      [14, 6, 'B'],
+      [15, 5, 'B'],
+      [13, 7, 'D'],
+    ]),
+    // Натянула рогатку: лапа с рогаткой отведена назад, резинка натянута.
+    aim: patch(SLING_RAT, [
+      [12, 6, 'B'],
+      [13, 5, 'B'],
+      [13, 4, 'B'],
+      [14, 3, 'B'],
+      [12, 4, 'B'],
+      [11, 3, 'B'],
+      [10, 9, 'D'],
+      [11, 9, 'D'],
+    ]),
+  },
+};
+
+const DOG_TOP = [
+  '..........DD....',
+  '.........DGGD...',
+  '.........DGGGDDD',
+  '........DGGRGGGD',
+  'DD......DGGGGGDD',
+  'DGD....DGGGGDD..',
+  '.DGDDDDGGGGD....',
+  '..DGGGGGGGGD....',
+  '..DGGDGGDGGD....',
+  '..DGGGGGGGGD....',
+  '...DDDDDDDD.....',
+];
+/** Механический пёс на колёсах: серый корпус, красный глаз. */
+const mechDog: SpriteDef = {
+  w: 16,
+  h: 14,
+  palette: { D: 0x000000, G: 0xbcbcbc, R: 0xf83800 },
+  frames: {
+    roll1: [...DOG_TOP, '..DDD....DDD....', '.DGDGD..DGDGD...', '..DDD....DDD....'],
+    roll2: [...DOG_TOP, '..DGD....DGD....', '.DDGDD..DDGDD...', '..DGD....DGD....'],
+  },
+};
+
+/** Давящий блок 32×32: стальной пресс, снизу — жёлто-чёрные полосы. */
+const crusher: SpriteDef = {
+  w: 32,
+  h: 32,
+  palette: { D: 0x000000, G: 0xbcbcbc, Y: 0xf8b800 },
+  frames: {
+    idle: grid(32, 32, (x, y) => {
+      if (edge(x, y, 32, 32)) return 'D';
+      if (y === 10 || y === 11) return 'D';
+      if (y < 10) {
+        if ((x === 4 || x === 27) && (y === 3 || y === 7)) return 'D';
+        return y === 1 ? 'G' : (x + 2 * y) % 13 === 0 ? 'D' : 'G';
+      }
+      if (y === 30) return 'D';
+      return Math.floor((x + y) / 4) % 2 === 0 ? 'Y' : 'D';
+    }),
+  },
+};
+
+/** Складная платформа: серая плита на петлях; раскрытая — створки висят вниз. */
+const foldPlatform: SpriteDef = {
+  w: 32,
+  h: 8,
+  palette: { D: 0x000000, G: 0xbcbcbc, B: 0x0058f8 },
+  frames: {
+    idle: [
+      'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
+      'DGGGGGGGGGGGGGGDDGGGGGGGGGGGGGGD',
+      'DGBBBBBBBBBBBBGDDGBBBBBBBBBBBBGD',
+      'DGGGGGGGGGGGGGGDDGGGGGGGGGGGGGGD',
+      'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
+      '...DD....................DD.....',
+      '...DD....................DD.....',
+      '................................',
+    ],
+    open: [
+      'DDD..........................DDD',
+      'DGD..........................DGD',
+      'DGD..........................DGD',
+      'DBD..........................DBD',
+      'DGD..........................DGD',
+      'DBD..........................DBD',
+      'DGD..........................DGD',
+      'DDD..........................DDD',
+    ],
+  },
+};
+
+/** Гусеницы крана 80×24: два кадра — траки сдвинуты. */
+function craneTracksFrame(shift: number): string[] {
+  const W = 80;
+  const H = 24;
+  return grid(W, H, (x, y) => {
+    // Скруглённые концы.
+    const r = 12;
+    const cx = x < r ? r : x > W - 1 - r ? W - 1 - r : x;
+    const d = Math.hypot(x - cx, y - (H - 1) / 2);
+    if (d > r) return '.';
+    if (d > r - 1.2) return 'D';
+    if (d > r - 4) return (x + shift) % 6 < 2 ? 'D' : 'W';
+    // Катки.
+    const k = (x - 6) % 14;
+    const kd = Math.hypot(k - 7, y - 11.5);
+    if (x > 6 && x < W - 6 && kd < 5) return kd > 3.6 ? 'D' : kd < 1.5 ? 'D' : 'G';
+    return 'G';
+  });
+}
+const craneTracks: SpriteDef = {
+  w: 80,
+  h: 24,
+  palette: { D: 0x000000, G: 0x7c7c7c, W: 0xbcbcbc },
+  frames: { a: craneTracksFrame(0), b: craneTracksFrame(3) },
+};
+
+/**
+ * Корпус крана 72×64 (от x крана + 8, с высоты 104): красная кабина с окном (в окне виден
+ * Марков — он рисуется позади), под ней корпус с решёткой и узлом стрелы слева.
+ */
+const craneBody: SpriteDef = {
+  w: 72,
+  h: 64,
+  palette: { D: 0x000000, R: 0xd82800, O: 0xfc7460 },
+  frames: {
+    idle: grid(72, 64, (x, y) => {
+      // Кабина: x 36..69, y 0..33; окно x 40..65, y 4..30 — прозрачное.
+      const inCab = x >= 36 && x <= 69 && y <= 33;
+      if (inCab) {
+        const win = x >= 40 && x <= 65 && y >= 4 && y <= 30;
+        if (win) return '.';
+        if (x === 36 || x === 69 || y === 0 || x === 39 || x === 66 || y === 3 || y === 31)
+          return 'D';
+        return y === 1 || x === 37 ? 'O' : 'R';
+      }
+      // Корпус: x 0..71, y 32..63, скошен слева сверху.
+      if (y < 32) return '.';
+      const yy = y - 32;
+      if (x < 16 - yy) return '.';
+      if (x === 16 - yy || x === 71 || y === 32 || y === 63) return 'D';
+      if (yy === 1) return 'O';
+      // Решётка радиатора справа и заклёпки.
+      if (x >= 50 && x <= 66 && yy >= 8 && yy <= 22) return (x - 50) % 4 === 0 ? 'D' : 'R';
+      if (yy === 26 && x % 8 === 4) return 'D';
+      // Узел стрелы слева.
+      const pd = Math.hypot(x - 22, yy - 9);
+      if (pd < 5) return pd > 3.5 ? 'D' : pd < 1.5 ? 'D' : 'O';
+      return 'R';
+    }),
+  },
+};
+
+/** Шар на цепи 24×24: синий, с шипами (как в оригинале). */
+const wreckingBall: SpriteDef = {
+  w: 24,
+  h: 24,
+  palette: { D: 0x000000, B: 0x0058f8, W: 0xfcfcfc },
+  frames: {
+    idle: grid(24, 24, (x, y) => {
+      const dx = x - 11.5;
+      const dy = y - 11.5;
+      const d = Math.hypot(dx, dy);
+      // Шипы по 8 направлениям.
+      const a = Math.atan2(dy, dx);
+      const spike = Math.abs(Math.sin(a * 4)) < 0.22 && d <= 11.5;
+      if (d > 9 && !spike) return '.';
+      if (spike && d > 8) return d > 10.6 ? 'D' : 'W';
+      if (d > 8) return 'D';
+      if (Math.hypot(dx + 3, dy + 3) < 2.5) return 'W';
+      return 'B';
+    }),
+  },
+};
+
+/**
+ * Сергей Марков (по фото гостя): короткие рыжеватые волосы с залысинами, рыжая бородка
+ * с усами, тёмный пиджак, ярко-красный свитер с белым воротником рубашки. Анфас.
+ * Палитра: волосы, борода и свитер — одним рыжим (3 цвета на спрайт).
+ */
+const MARKOV_HEAD = mirror([
+  '.........OOO',
+  '.......OOOOO',
+  '.....OOOOOOO',
+  '....DOOOOOOO',
+  '....DOOOOOSS',
+  '....DOSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '....DSDDDSSS',
+  '...DSSSSSSSS',
+  '...DSSSDSSSS',
+  '...DSSSSSSSS',
+  '....DSSSSSSS',
+  '....DSSOOOSD',
+  '....DSOOOOOO',
+  '.....DOOODDD',
+  '......DOOOOO',
+  '.......DOOOO',
+  '........DDOO',
+]);
+const MARKOV_TORSO = mirror([
+  '..........DS',
+  '.......DDSSS',
+  '....DDDDDSOO',
+  '..DDDDDDDOOO',
+  '.DDDDDDDDOOO',
+  '.DD.DDDDDOOO',
+  '.DD.DDDDDOOO',
+  '.DD.DDDDDOOO',
+  '.DD.DDDDDOOO',
+  '.DD.DDDDDDOO',
+  '.DD.DDDDDDDD',
+  '.SS.DDDDDDDD',
+  '.SS.DDDDDDDD',
+  '....DDDDDDDD',
+]);
+const MARKOV_IDLE = [...MARKOV_HEAD, ...MARKOV_TORSO, ...BORDACHEV_LEGS];
+const markov: SpriteDef = {
+  w: 24,
+  h: 40,
+  palette: { D: 0x000000, S: 0xfcbcb0, O: 0xe45c10 },
+  frames: {
+    idle: MARKOV_IDLE,
+    aim: raiseArm(MARKOV_IDLE, 'D'),
+    hit: eyesShut(MARKOV_IDLE),
+    freed: patch(MARKOV_IDLE, [
+      [8, 16, 'D'],
+      [15, 16, 'D'],
+    ]),
+  },
 };
 
 export const SPRITES = {
@@ -2471,6 +3617,37 @@ export const SPRITES = {
   candle,
   candleCeil: candle,
   petrovsky,
+  mole,
+  rat,
+  wrench,
+  bolt,
+  chainPlatform,
+  gear,
+  shchelin,
+  cart,
+  boulder,
+  pendulum,
+  bat,
+  snakeBox,
+  porcupine,
+  moth,
+  diveMoth,
+  mothShot,
+  card,
+  sobolev,
+  luka,
+  vasiliev,
+  metal,
+  scrap,
+  pebble,
+  slingRat,
+  mechDog,
+  crusher,
+  foldPlatform,
+  craneTracks,
+  craneBody,
+  wreckingBall,
+  markov,
 } as const satisfies Record<string, SpriteDef>;
 
 export type SpriteId = keyof typeof SPRITES;

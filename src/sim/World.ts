@@ -1,12 +1,15 @@
-import { AGRANOVICH, BALANCE, BOSS_RULES, URALOV } from '../config/balance';
+import { AGRANOVICH, BALANCE, BOSS_RULES, DUO, MARKOV, SHCHELIN, URALOV } from '../config/balance';
 import { ENEMIES } from '../config/enemies';
-import { ARCHIVE_HALL } from '../config/mechanisms';
+import { ARCHIVE_HALL, FUTURE, MINE } from '../config/mechanisms';
 import type { HeroId } from '../systems/Flow';
 import type { PlayerId } from '../systems/InputState';
 import { Agranovich } from './bosses/Agranovich';
 import type { BossWorld } from './bosses/Boss';
 import { Bordachev, type BordachevWorld, type Ledge } from './bosses/Bordachev';
 import { Mikitko, type MikitkoWorld } from './bosses/Mikitko';
+import { Shchelin, type ShchelinWorld } from './bosses/Shchelin';
+import { Duo } from './bosses/Duo';
+import { Markov, type MarkovWorld } from './bosses/Markov';
 import { Uralov } from './bosses/Uralov';
 import { Camera } from './Camera';
 import { createEnemy, isEnemyKind, type Enemy } from './enemies';
@@ -15,7 +18,16 @@ import { addLife, heal, loseLife, type PlayerCarry } from './health';
 
 export type { PlayerCarry } from './health';
 import { Item, type ItemKind, type ThrowDir } from './Item';
-import { buildMechanisms, type Mechanisms, type Rider } from './Mechanisms';
+import {
+  buildMechanisms,
+  bumpers,
+  Cart,
+  cartSpeed,
+  rails,
+  type Magnet,
+  type Mechanisms,
+  type Rider,
+} from './Mechanisms';
 import type { LevelData, Segment, SpawnPoint, Zone } from './level';
 import { isPickupKind, Pickup, type PickupKind } from './Pickup';
 import { Player, type InputView } from './Player';
@@ -46,19 +58,27 @@ const ZONE_GRAVITY: Readonly<Record<string, number>> = {
   foam: AGRANOVICH.foamGravityBonus,
 };
 
-const ITEM_KINDS: readonly string[] = ['box', 'case', 'letter'] satisfies ItemKind[];
+const ITEM_KINDS: readonly string[] = [
+  'box',
+  'case',
+  'letter',
+  'gear',
+  'card',
+  'metal',
+  'scrap',
+] satisfies ItemKind[];
 const isItemKind = (k: string): k is ItemKind => ITEM_KINDS.includes(k);
 
 /** Расстояние между игроками на старте, px. */
 const COOP_START_OFFSET = 16;
 
-export type Boss = Agranovich | Uralov | Bordachev | Mikitko;
+export type Boss = Agranovich | Uralov | Bordachev | Mikitko | Shchelin | Duo | Markov;
 
 /**
  * Мир уровня: вся игровая логика без Phaser. Шаг — 1/60 с. Сцена передаёт ввод,
  * рисует состояние и забирает события (звуки, вход в арену, победа, конец игры).
  */
-export class World implements BossWorld, BordachevWorld, MikitkoWorld {
+export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinWorld, MarkovWorld {
   readonly grid: TileGrid;
   readonly camera: Camera;
   readonly rng: Rng;
@@ -163,7 +183,7 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     const wrap = this.camera.wrapRise();
     if (wrap !== 0) this.shiftAll(wrap);
     this.spawnEnemies();
-    this.moveMechanisms();
+    this.moveMechanisms(inputs);
 
     for (const p of this.players) {
       const input = inputs[p.id];
@@ -173,12 +193,14 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     this.afterPlayersMechanisms();
 
     for (const it of this.items) it.update(this);
+    this.catchThrownMetal();
     this.resolveThrownItems();
 
     for (const e of this.enemies) if (e.alive) e.step(this);
     this.resolveEnemyContacts();
 
     for (const pr of this.projectiles) if (pr.alive) pr.update(this);
+    this.landGears();
     this.resolveProjectiles();
 
     if (this.boss) this.updateBoss(this.boss);
@@ -226,6 +248,9 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
         .map((s) => ({ x: s.x, y: s.y }));
       return new Mikitko(points, this.floorBelow(seg), seg);
     }
+    if (seg.boss === 'shchelin') return new Shchelin(seg);
+    if (seg.boss === 'duo') return new Duo(seg);
+    if (seg.boss === 'markov') return new Markov(seg);
     return null;
   }
 
@@ -308,6 +333,73 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     return this.boss instanceof Mikitko
       ? { color: 0x000000, alpha: 1 }
       : { color: ARCHIVE_HALL.darkColor, alpha: ARCHIVE_HALL.darkAlpha };
+  }
+
+  // ——— арена Щелина ———
+
+  /** Подбираемые шестерёнки на арене: лежат, в руках, летят, или та, что сейчас ляжет. */
+  gearsOnArena(): number {
+    return (
+      this.items.filter((i) => i.kind === 'gear' && i.state !== 'gone').length +
+      this.projectiles.filter((p) => p.alive && p.landsAsItem).length
+    );
+  }
+
+  /** Первая шестерёнка очереди коснулась пола — ложится предметом (в пределах арены). */
+  private landGears(): void {
+    const C = SHCHELIN.gearLand;
+    const seg = this.camera.segment;
+    for (const pr of this.projectiles) {
+      if (!pr.landed) continue;
+      pr.landed = false;
+      const T = this.grid.size;
+      const floor = Math.floor((pr.y + pr.h) / T) * T;
+      if (pr.kind === 'card') {
+        // Карта ложится, только если на арене нет другой; поднять можно через 1 с (ТЗ).
+        if (this.items.some((i) => i.kind === 'card' && i.state !== 'gone')) continue;
+        const x = Math.min(seg.x + seg.w - 16, Math.max(seg.x + 16, pr.x + pr.w / 2));
+        const card = new Item('card', { x, y: floor });
+        card.lock = DUO.cardArmFrames;
+        this.items.push(card);
+        continue;
+      }
+      if (pr.kind === 'scrap') {
+        // Обломок шара (арена Маркова): ложится на пол, не ближе к краям арены.
+        const D = MARKOV.debris;
+        const x = Math.min(seg.x + D.max, Math.max(seg.x + D.min, pr.x + pr.w / 2));
+        this.items.push(new Item('scrap', { x, y: floor }));
+        continue;
+      }
+      const x = Math.min(seg.x + C.max, Math.max(seg.x + C.min, pr.x + pr.w / 2));
+      this.items.push(new Item('gear', { x, y: floor }));
+    }
+  }
+
+  // ——— арена Маркова ———
+
+  /** Подбираемые обломки на арене: лежат, в руках, летят, или тот, что сейчас ляжет. */
+  scrapOnArena(): number {
+    return (
+      this.items.filter((i) => i.kind === 'scrap' && i.state !== 'gone').length +
+      this.projectiles.filter((p) => p.alive && p.landsAsItem && p.kind === 'scrap').length
+    );
+  }
+
+  /** Кран Маркова: гусеницы, корпус и шар ранят касанием; шар и гусеницы отбивают бросок. */
+  private craneContacts(b: Markov): void {
+    if (!b.harmful) return;
+    for (const it of this.items) {
+      if (it.state !== 'thrown' || overlaps(it, b)) continue;
+      if (b.deflectors.some((r) => overlaps(it, r))) {
+        it.deflect();
+        this.emit({ type: 'sfx', name: 'deflect' });
+      }
+    }
+    for (const p of this.players) {
+      if (!p.active || p.thrownFlight) continue;
+      const hit = b.hazards.find((r) => overlaps(p, r));
+      if (hit) this.damagePlayer(p, hit.x + hit.w / 2);
+    }
   }
 
   // ——— помощник (Петровский) ———
@@ -487,8 +579,21 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     const partner = this.players.find((q) => q !== p && q.active && q.controlled);
     if (partner) {
       p.startRespawn(partner.x + partner.w / 2, partner.y + partner.h);
+    } else if (this.mech.carts.length > 0 || rails(this.level).length > 0) {
+      this.respawnInRide(p, this.deathX.get(p) ?? p.x);
     } else {
       this.resetSegment();
+      // Как в оригинале: погиб на арене Щелина — его здоровье восстанавливается.
+      if (
+        this.boss instanceof Shchelin ||
+        this.boss instanceof Duo ||
+        this.boss instanceof Markov
+      ) {
+        this.boss.restore();
+        this.items = this.items.filter(
+          (i) => i.kind !== 'gear' && i.kind !== 'card' && i.kind !== 'scrap',
+        );
+      }
       const r = this.respawnPoint();
       p.startRespawn(r.x, r.y);
     }
@@ -540,7 +645,10 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
 
   /** Твёрдые блоки для тела: лежащие ящики и кейсы (кроме самого тела). */
   solidsFor(body: Rect): Rect[] {
-    return this.items.filter((i) => i.isSolid && i !== body && !overlaps(i, body));
+    const out: Rect[] = this.items.filter((i) => i.isSolid && i !== body && !overlaps(i, body));
+    // Давящие блоки (уровень 8) — твёрдые: в них упираются, на них встают.
+    for (const c of this.mech.crushers) if (!overlaps(c, body)) out.push(c);
+    return out;
   }
 
   nearestPlayer(from: Rect): Player | null {
@@ -623,6 +731,11 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
       if (!e.harmful) continue;
       for (const p of this.players) {
         if (!p.active || p.state === 'held' || !overlaps(p, e)) continue;
+        // В вагонетке любое попадание выбивает в пропасть — даже неуязвимого (как в оригинале).
+        if (p.cart) {
+          this.ejectFromCart(p);
+          break;
+        }
         if (e.touchPlayerEffect() === 'slow') {
           if (!p.invulnerable) {
             p.addSlow();
@@ -671,6 +784,10 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
         !it.fromCrane &&
         // Призрак Микитко: буквы падают сквозь него (запасные — сверху) и не бьют — только броском.
         !(boss instanceof Mikitko) &&
+        // Щелина бьёт только брошенная шестерёнка (замер оригинала).
+        !(boss instanceof Shchelin) &&
+        !(boss instanceof Duo) &&
+        !(boss instanceof Markov) &&
         it.vy > 0 &&
         overlaps(it, boss) &&
         boss.hit(this)
@@ -694,6 +811,7 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
       this.panicFrames = 0;
       return;
     }
+    if (boss instanceof Markov) this.craneContacts(boss);
     if (boss.harmful) {
       for (const p of this.players)
         if (p.active && !p.thrownFlight && overlaps(p, boss))
@@ -706,7 +824,16 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     );
     // На арене rise боеприпасы приносит кран (ТЗ); коробка сверху уехала бы за экран сразу.
     // Арена Микитко: буквы роняет только сам призрак (отзыв пользователя), сверху ничего не падает.
-    if (hasAmmo || boss.state === 'intro' || arena.dir === 'rise' || boss instanceof Mikitko) {
+    // Щелин: боеприпас — только его же шестерёнка (как в оригинале), ящиков нет.
+    if (
+      hasAmmo ||
+      boss.state === 'intro' ||
+      arena.dir === 'rise' ||
+      boss instanceof Mikitko ||
+      boss instanceof Shchelin ||
+      boss instanceof Duo ||
+      boss instanceof Markov
+    ) {
       this.ammoTimer = 0;
     } else if (++this.ammoTimer >= BOSS_RULES.ammoDropFrames) {
       this.ammoTimer = 0;
@@ -745,11 +872,167 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
   }
 
   /** До шага игроков: лифты едут к цели, вода поднимается, кораблик держится на ней. */
-  private moveMechanisms(): void {
+  private moveMechanisms(inputs: Readonly<Partial<Record<PlayerId, InputView>>> = {}): void {
     const riders = this.riders();
+    this.moveCarts(inputs, riders);
     for (const l of this.mech.lifts) l.move(riders);
+    for (const c of this.mech.chains) c.move(riders);
+    for (const c of this.mech.crushers) {
+      c.move(riders);
+      if (c.falling) this.crush(c);
+    }
     for (const f of this.mech.floods) f.rise();
     for (const fl of this.mech.floaters) if (fl.shown) fl.follow(riders);
+  }
+
+  // ——— давящие блоки и магнит (уровень 8) ———
+
+  /** Блок упал на героя: минус сердце, героя выталкивает вбок — туда, где ближе край блока. */
+  private crush(c: Rect): void {
+    for (const p of this.players) {
+      if (!p.active || p.state === 'held' || !overlaps(p, c)) continue;
+      const pcx = p.x + p.w / 2;
+      const left = pcx < c.x + c.w / 2;
+      p.x = left ? c.x - p.w : c.x + c.w;
+      this.damagePlayer(p, left ? c.x + c.w : c.x);
+    }
+    for (const e of this.enemies) if (e.alive && overlaps(e, c)) e.alive = false;
+  }
+
+  /**
+   * Магнит (ТЗ): герой с металлическим блоком под магнитом поднимается, пока блок не упрётся
+   * в магнит. Возвращает скорость по вертикали вместо гравитации (0 — висит); null — не тянет.
+   */
+  magnetLift(p: Player): number | null {
+    const it = p.carriedItem;
+    if (!it || it.kind !== 'metal' || it.state !== 'carried') return null;
+    const m = this.mech.magnets.find((q) => !q.holding && q.inField(p.x + p.w / 2) && p.y > q.y);
+    if (!m) return null;
+    const target = m.bottom + it.h;
+    return -Math.min(FUTURE.magnet.pullSpeed, Math.max(0, p.y - target));
+  }
+
+  /** Герой висит под магнитом (блок упёрся). */
+  hangsOnMagnet(p: Player): boolean {
+    return this.magnetLift(p) === 0;
+  }
+
+  /** Прыжок или бросок под магнитом: блок прилипает к магниту, герой его отпускает. */
+  stickToMagnet(p: Player): void {
+    const it = p.carriedItem;
+    const m = this.mech.magnets.find((q) => !q.holding && q.inField(p.x + p.w / 2) && p.y > q.y);
+    if (!it || !m) return;
+    p.carrying = null;
+    this.attachToMagnet(it, m);
+  }
+
+  private attachToMagnet(it: Item, m: Magnet): void {
+    m.holding = true;
+    it.state = 'resting';
+    it.stuck = true;
+    it.owner = null;
+    it.vx = 0;
+    it.vy = 0;
+    it.x = m.x + m.w / 2 - it.w / 2;
+    it.y = m.bottom;
+    this.emit({ type: 'sfx', name: 'lift' });
+  }
+
+  /** Брошенный в поле магнита металлический блок прилипает к нему. */
+  private catchThrownMetal(): void {
+    for (const it of this.items) {
+      if (it.kind !== 'metal' || it.state !== 'thrown') continue;
+      const m = this.mech.magnets.find(
+        (q) => !q.holding && q.inField(it.x + it.w / 2) && it.y > q.y,
+      );
+      if (m) this.attachToMagnet(it, m);
+    }
+  }
+
+  // ——— вагонетка (уровень 7) ———
+
+  /** Едет со скоростью по кнопкам героя (тормоз / газ); держит → на обрыве — героя выбрасывает. */
+  private moveCarts(
+    inputs: Readonly<Partial<Record<PlayerId, InputView>>>,
+    riders: readonly Rider[],
+  ): void {
+    for (const c of this.mech.carts) {
+      const rider = c.rider instanceof Player ? c.rider : null;
+      const input = rider ? inputs[rider.id] : undefined;
+      const left = input?.down('left') ?? false;
+      const right = input?.down('right') ?? false;
+      const stopped = c.step(cartSpeed(left, right), riders);
+      if (stopped && rider) {
+        // Доехал до отбойника: дальше пешком.
+        rider.cart = null;
+        c.rider = null;
+        this.emit({ type: 'sfx', name: 'lift' });
+      } else if (rider && c.state === 'rolling' && !c.onGround && right) {
+        this.ejectFromCart(rider);
+      }
+    }
+  }
+
+  /** Коснулся рычага стоящей вагонетки, стоя в ней, — поехали. */
+  private checkLevers(): void {
+    for (const c of this.mech.carts) {
+      if (c.state !== 'parked') continue;
+      const p = this.players.find(
+        (q) => q.active && q.cart === null && c.isRider(q) && overlaps(q, c.lever),
+      );
+      if (!p) continue;
+      c.state = 'rolling';
+      c.rider = p;
+      p.cart = c;
+      p.facing = 1;
+      this.emit({ type: 'sfx', name: 'trigger' });
+    }
+  }
+
+  /** Валун, маятник или летучая мышь выбили героя из вагонетки: он падает в пропасть. */
+  ejectFromCart(p: Player): void {
+    if (!p.cart) return;
+    p.cart.rider = null;
+    p.cart = null;
+    p.ejected = true;
+    p.dropCarried();
+    p.vx = MINE.eject.vx;
+    p.vy = MINE.eject.vy;
+    p.state = 'hurt';
+    p.stateTimer = MINE.eject.frames;
+    this.emit({ type: 'sfx', name: 'hurt' });
+  }
+
+  /**
+   * Возрождение в заезде (как в оригинале): на ближайшей сзади границе экрана, в новой стоящей
+   * вагонетке; к рычагу снова нужно прикоснуться. После отбойника (пешком) — на земле.
+   */
+  private respawnInRide(p: Player, deathX: number): void {
+    const seg = this.camera.segment;
+    const step = MINE.checkpointEvery;
+    const cp = Math.max(seg.x, Math.floor(deathX / step) * step);
+    this.camera.x = Math.min(cp, seg.x + seg.w - this.camera.w);
+    this.enemies = [];
+    this.projectiles = [];
+    this.spawnedEnemies.clear();
+    const x = cp + 40;
+    const rail = rails(this.level)
+      .filter((r) => x >= r.x && x < r.x + r.w)
+      .sort((a, b) => a.y - b.y)[0];
+    if (rail) {
+      const cart = new Cart(x, rail.y, rails(this.level), bumpers(this.level));
+      this.mech.carts = [cart];
+      p.startRespawn(x, cart.y);
+      return;
+    }
+    const T = this.grid.size;
+    const tx = Math.floor(x / T);
+    for (let ty = Math.floor(this.camera.y / T); ty < this.grid.rows; ty++)
+      if (this.grid.isSolid(tx, ty)) {
+        p.startRespawn(x, ty * T);
+        return;
+      }
+    p.startRespawn(seg.respawn.x, seg.respawn.y);
   }
 
   /** После шага игроков: приземления на помпы, вентиль-триггер, утопление. */
@@ -757,6 +1040,7 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     const riders = this.riders();
     for (const l of this.mech.lifts)
       if (l.countLandings(riders)) this.emit({ type: 'sfx', name: 'lift' });
+    this.checkLevers();
     // Тающие платформы: тает от игрока, вставшего на неё.
     const heroes = this.players.filter((p) => p.active && p.state !== 'held');
     for (const m of this.mech.melts) m.update(heroes.some((p) => m.isRider(p)));
@@ -771,12 +1055,15 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     }
   }
 
-  /** Движущиеся платформы «только сверху»: помпы и всплывший кораблик. */
+  /** Движущиеся платформы «только сверху»: помпы, кораблик, тающие вещи, цепи. */
   platformsFor(body: Rect): Rect[] {
     const out: Rect[] = [];
     for (const l of this.mech.lifts) if (l !== body) out.push(l);
     for (const fl of this.mech.floaters) if (fl.active && fl !== body) out.push(fl);
     for (const m of this.mech.melts) if (m.active) out.push(m);
+    for (const c of this.mech.chains) out.push(c);
+    // Выбитый из вагонетки падает сквозь неё.
+    if (!(body instanceof Player && body.ejected)) for (const c of this.mech.carts) out.push(c);
     return out;
   }
 
@@ -798,7 +1085,19 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld {
     return this.players.map((p) => ({ id: p.id, vitals: { ...p.vitals }, timecodes: p.timecodes }));
   }
 
+  /** Верх ближайшего рельса под точкой (валун разбивается о путь); null — рельса нет. */
+  railBelow(x: number, fromY: number): number | null {
+    let best: number | null = null;
+    for (const r of rails(this.level))
+      if (x >= r.x && x < r.x + r.w && r.y >= fromY && (best === null || r.y < best)) best = r.y;
+    return best;
+  }
+
+  /** Где игрок был, когда погиб (для чекпоинта заезда). */
+  private readonly deathX = new Map<Player, number>();
+
   private checkPits(): void {
+    for (const p of this.players) if (p.state !== 'dead') this.deathX.set(p, p.x);
     for (const p of this.players) {
       if (p.active && p.state !== 'held' && p.state !== 'respawn' && this.camera.fellOut(p))
         p.kill(this);

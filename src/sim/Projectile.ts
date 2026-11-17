@@ -2,7 +2,20 @@ import type { Rect } from './geom';
 import type { World } from './World';
 
 export type ProjectileKind =
-  'latte' | 'stream' | 'paintball' | 'headline' | 'globe' | 'nut' | 'beam';
+  | 'latte'
+  | 'stream'
+  | 'paintball'
+  | 'headline'
+  | 'globe'
+  | 'nut'
+  | 'beam'
+  | 'wrench'
+  | 'bolt'
+  | 'gear'
+  | 'mothShot'
+  | 'card'
+  | 'pebble'
+  | 'scrap';
 
 /** Снаряд врага или босса. Ранит игрока при касании, гаснет о стену или за экраном. */
 export class Projectile implements Rect {
@@ -32,9 +45,18 @@ export class Projectile implements Rect {
   }
 
   private phase = 0;
+  /** Ускорение по горизонтали (шестерёнки 1991-го летят назад, к Щелину). */
+  ax = 0;
+  /** Шестерёнка, которая упадёт на пол и станет предметом (первая в очереди Щелина). */
+  landsAsItem = false;
+  /** Такая шестерёнка коснулась пола: мир кладёт на это место предмет. */
+  landed = false;
+  /** Летит сквозь стены и пол (второй обломок шара проваливается сквозь пол, как в оригинале). */
+  ghost = false;
 
   update(world: World): void {
     this.vy += this.gravity;
+    this.vx += this.ax;
     this.x += this.vx;
     this.y += this.vy;
     if (this.wave) {
@@ -42,6 +64,9 @@ export class Projectile implements Rect {
       this.phase += this.wave.frequency;
       this.y += Math.sin(this.phase) * this.wave.amplitude - before;
     }
-    if (world.grid.rectHitsSolid(this) || !world.camera.sees(this, 16)) this.alive = false;
+    if (!this.ghost && world.grid.rectHitsSolid(this)) {
+      this.alive = false;
+      if (this.landsAsItem && this.vy > 0) this.landed = true;
+    } else if (!world.camera.sees(this, 16)) this.alive = false;
   }
 }

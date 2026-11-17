@@ -5,6 +5,11 @@ import { PLAYER_PHYSICS } from '../config/physics';
 import type { Boss } from '../sim/World';
 import { Bordachev } from '../sim/bosses/Bordachev';
 import { Mikitko } from '../sim/bosses/Mikitko';
+import { Shchelin } from '../sim/bosses/Shchelin';
+import { Duo } from '../sim/bosses/Duo';
+import { Markov } from '../sim/bosses/Markov';
+import { DUO } from '../config/balance';
+import { Pendulum } from '../sim/enemies/MineHazards';
 import { MIKITKO } from '../config/balance';
 import { Uralov } from '../sim/bosses/Uralov';
 import { Rigger } from '../sim/enemies/Rigger';
@@ -59,8 +64,13 @@ const WATER = {
 /** Трос крана — серый, как блок крюка. Крюк и коробка под ним — по 16 px. */
 const CRANE_CABLE = 0x7c7c7c;
 const HOOK_SIZE = 16;
+/** Цепь маятника шахты. */
+const ROPE_COLOR_CHAIN = 0x7c7c7c;
 /** Канат такелажника — пеньковый. */
 const ROPE_COLOR = 0xac7c00;
+
+/** Центр циферблата на арене Щелина (scripts/levels/level6_arena.mjs), от левого верха арены. */
+const CLOCK_FACE = { x: 128, y: 76 } as const;
 
 /** Мигание раз в N кадров. */
 function blink(timer: number): boolean {
@@ -83,6 +93,17 @@ const ENEMY_FRAMES: Record<EnemyKind, readonly [string, string]> = {
   commentGhost: ['fly1', 'fly2'],
   candle: ['walk1', 'walk2'],
   candleCeil: ['walk1', 'walk2'],
+  mole: ['out', 'out'],
+  rat: ['walk1', 'walk2'],
+  boulder: ['idle', 'idle'],
+  pendulum: ['idle', 'idle'],
+  bat: ['fly1', 'fly2'],
+  snakeBox: ['idle', 'idle'],
+  porcupine: ['walk1', 'walk2'],
+  moth: ['fly1', 'fly2'],
+  diveMoth: ['fly1', 'fly2'],
+  slingRat: ['idle', 'idle'],
+  mechDog: ['roll1', 'roll2'],
 };
 
 function alt(frame: number, per: number, a: string, b: string): string {
@@ -168,11 +189,14 @@ export class LevelView {
     // Пламя свечей (зоны flame): горит и в темноте.
     this.flames = world.level.zones.filter((z) => z.kind === 'flame');
     this.helpers = world.level.zones.filter((z) => z.kind === 'helper');
+    this.cameos = world.level.zones.filter((z) => z.kind === 'cameo');
   }
 
   private readonly darkness: Phaser.GameObjects.Rectangle;
   private readonly flames: readonly Rect[];
   private readonly helpers: readonly Rect[];
+  /** Камео (Стас Васильев за стойкой салуна, уровень 7): просто стоит. */
+  private readonly cameos: readonly Rect[];
   /** Ключи слоёв призрака Микитко. */
   private readonly ghostLayers = { coat: {}, hair: {}, face: {} };
 
@@ -248,9 +272,13 @@ export class LevelView {
 
     for (const e of w.enemies) draw(e, this.enemyView(e, f));
     this.syncRopes();
+    this.syncPendulums();
     for (const p of w.players) this.syncHero(p);
-    if (w.boss instanceof Mikitko) this.syncMikitko(w.boss, f, draw);
+    if (w.boss instanceof Markov) this.syncMarkov(w.boss, f, draw);
+    else if (w.boss instanceof Mikitko) this.syncMikitko(w.boss, f, draw);
+    else if (w.boss instanceof Duo) this.syncDuo(w.boss, draw);
     else if (w.boss) draw(w.boss, this.bossView(w.boss, f));
+    this.syncClock();
     this.syncDark(f, draw);
     this.syncCrane(draw);
     for (const pr of w.projectiles)
@@ -263,8 +291,30 @@ export class LevelView {
       });
     for (const l of w.mech.lifts)
       draw(l, { id: 'pump', frame: 'idle', rect: l, depth: DEPTH.mechanism });
+    for (const c of w.mech.chains)
+      draw(c, { id: 'chainPlatform', frame: 'idle', rect: c, depth: DEPTH.mechanism });
+    this.syncCrushers(draw);
+    // Вагонетка — поверх героя (он стоит в ней), низ спрайта — колёса ниже рельса.
+    for (const c of w.mech.carts)
+      draw(c, {
+        id: 'cart',
+        frame: 'idle',
+        rect: { x: c.x, y: c.y - 16, w: 32, h: 20 },
+        depth: DEPTH.hero + 0.5,
+      });
     // Тающие платформы: тают — дрожат и бледнеют, растаяли — не видны.
     for (const m of w.mech.melts) {
+      if (m.item === 'fold') {
+        // Складная платформа: перед тем как раскрыться, дрожит; раскрытая — створки вниз.
+        const shake = m.state === 'melting' && m.left < 0.35 && f % 4 < 2 ? 1 : 0;
+        draw(m, {
+          id: 'foldPlatform',
+          frame: m.active ? 'idle' : 'open',
+          rect: { x: m.x + shake, y: m.y, w: m.w, h: m.h },
+          depth: DEPTH.mechanism,
+        });
+        continue;
+      }
       const melting = m.state === 'melting';
       const jitter = melting && f % 6 < 3 ? 1 : 0;
       draw(m, {
@@ -314,7 +364,103 @@ export class LevelView {
     }
   }
 
+  /** Шток давящих блоков: от верхнего положения (низ цилиндра на фоне) до блока. */
+  private rods: Phaser.GameObjects.Graphics | null = null;
+
+  private syncCrushers(draw: (key: object, v: SpriteView) => void): void {
+    const cs = this.world.mech.crushers;
+    if (cs.length === 0) return;
+    this.rods ??= this.scene.add.graphics().setDepth(DEPTH.mechanism - 0.1);
+    const g = this.rods.clear();
+    for (const c of cs) {
+      const h = c.y - c.topY;
+      if (h > 0) {
+        g.fillStyle(0x000000, 1).fillRect(c.x + c.w / 2 - 5, c.topY, 10, h);
+        g.fillStyle(0xbcbcbc, 1).fillRect(c.x + c.w / 2 - 4, c.topY, 8, h);
+        g.fillStyle(0xfcfcfc, 1).fillRect(c.x + c.w / 2 - 3, c.topY, 2, h);
+      }
+      draw(c, { id: 'crusher', frame: 'idle', rect: c, depth: DEPTH.mechanism });
+    }
+  }
+
+  /** Стрела и цепь крана Маркова. */
+  private craneRig: Phaser.GameObjects.Graphics | null = null;
+  private readonly craneParts = { tracks: {}, body: {}, ball: {} };
+
+  /**
+   * Арена Маркова: гусеницы, корпус с кабиной (Марков в окне — позади корпуса), стрела, цепь
+   * и шар. Побеждён — Марков стоит на полу перед краном.
+   */
+  private syncMarkov(b: Markov, f: number, draw: (key: object, v: SpriteView) => void): void {
+    const cx = b.craneX;
+    const top = b.arena.y;
+    const tracks = b.tracks;
+    draw(this.craneParts.tracks, {
+      id: 'craneTracks',
+      frame: Math.floor(b.travelled / 3) % 2 === 0 ? 'a' : 'b',
+      rect: tracks,
+      depth: DEPTH.boss - 0.2,
+    });
+    draw(this.craneParts.body, {
+      id: 'craneBody',
+      frame: 'idle',
+      rect: { x: cx + 8, y: top + 104, w: 72, h: 64 },
+      depth: DEPTH.boss - 0.3,
+    });
+    const ball = b.ball;
+    // Перед ударом шар качается (знак).
+    const sway = b.telegraphing ? (f % 8 < 4 ? -2 : 2) : 0;
+    const ballRect = { x: ball.x + sway, y: ball.y, w: ball.w, h: ball.h };
+    draw(this.craneParts.ball, {
+      id: 'wreckingBall',
+      frame: 'idle',
+      rect: ballRect,
+      depth: DEPTH.boss - 0.1,
+    });
+    // Стрела: от узла на корпусе вверх-влево до точки над шаром; цепь — до шара.
+    this.craneRig ??= this.scene.add.graphics().setDepth(DEPTH.boss - 0.4);
+    const g = this.craneRig.clear();
+    const pivot = { x: cx + 30, y: top + 145 };
+    const tip = { x: ball.x + ball.w / 2, y: top + 40 };
+    g.lineStyle(7, 0x000000, 1).lineBetween(pivot.x, pivot.y, tip.x, tip.y);
+    g.lineStyle(5, 0xd82800, 1).lineBetween(pivot.x, pivot.y, tip.x, tip.y);
+    g.lineStyle(1, 0xfc7460, 1).lineBetween(pivot.x, pivot.y - 2, tip.x, tip.y - 2);
+    g.fillStyle(0x000000, 1).fillCircle(tip.x, tip.y, 4);
+    g.lineStyle(3, 0x000000, 1).lineBetween(tip.x, tip.y, ballRect.x + ball.w / 2, ball.y + 2);
+    g.lineStyle(1, 0xbcbcbc, 1).lineBetween(tip.x, tip.y, ballRect.x + ball.w / 2, ball.y + 2);
+    if (b.defeated) {
+      draw(b, { id: 'markov', frame: 'freed', rect: b, depth: DEPTH.boss });
+      return;
+    }
+    const frame = b.invuln > 0 ? 'hit' : b.telegraphing ? 'aim' : 'idle';
+    draw(b, {
+      id: 'markov',
+      frame,
+      rect: { x: b.x, y: b.y - 2, w: 24, h: 40 },
+      // Позади корпуса: в окне кабины видны голова и плечи.
+      depth: DEPTH.boss - 0.35,
+      flip: true,
+      visible: b.invuln === 0 || blink(b.invuln),
+    });
+  }
+
   /** Канаты такелажников: от блока на мачте до люльки. */
+  private pendulumChains: Phaser.GameObjects.Graphics | null = null;
+
+  /** Цепи маятников шахты: от точки подвеса до ядра. */
+  private syncPendulums(): void {
+    const ps = this.world.enemies.filter((e): e is Pendulum => e instanceof Pendulum);
+    if (ps.length === 0 && !this.pendulumChains) return;
+    this.pendulumChains ??= this.scene.add.graphics().setDepth(DEPTH.enemy - 0.1);
+    const g = this.pendulumChains.clear();
+    g.lineStyle(2, ROPE_COLOR_CHAIN, 1);
+    for (const p of ps) {
+      const b = p.ball;
+      g.lineBetween(p.pivot.x, p.pivot.y, b.x, b.y);
+      g.fillStyle(0x000000, 1).fillRect(p.pivot.x - 3, p.pivot.y - 3, 6, 6);
+    }
+  }
+
   private syncRopes(): void {
     const riggers = this.world.enemies.filter((e): e is Rigger => e instanceof Rigger);
     riggers.forEach((r, i) => {
@@ -428,6 +574,8 @@ export class LevelView {
         depth: DEPTH.enemy,
         flip: true,
       });
+    for (const z of this.cameos)
+      draw(z, { id: 'vasiliev', frame: 'bar', rect: z, depth: DEPTH.mechanism, flip: true });
     for (const z of this.flames)
       draw(z, {
         id: 'flame',
@@ -489,13 +637,19 @@ export class LevelView {
             : b.airborne
               ? 'jump'
               : 'idle'
-          : b instanceof Uralov
-            ? b.wingsDown
-              ? 'flap'
-              : 'idle'
-            : b.telegraphing
+          : b instanceof Shchelin
+            ? b.telegraphing
               ? 'aim'
-              : 'idle';
+              : Math.floor(b.wheel / 6) % 2 === 0
+                ? 'idle'
+                : 'ride'
+            : b instanceof Uralov
+              ? b.wingsDown
+                ? 'flap'
+                : 'idle'
+              : b.telegraphing
+                ? 'aim'
+                : 'idle';
     const bob = b.flying
       ? Math.round(
           Math.sin((f / SPRITE_ANIM.bossBobPeriod) * Math.PI * 2) * SPRITE_ANIM.bossBobAmplitude,
@@ -506,11 +660,12 @@ export class LevelView {
     const flip =
       b instanceof Uralov
         ? false
-        : b instanceof Bordachev
+        : b instanceof Bordachev || b instanceof Shchelin
           ? b.facing < 0
           : target !== null && target.x < b.x + b.w / 2;
     return {
-      id: b.name,
+      // Соболев и Лука рисуются отдельно (syncDuo).
+      id: b.name === 'duo' ? 'sobolev' : b.name,
       frame,
       rect: b,
       depth: DEPTH.boss,
@@ -519,6 +674,58 @@ export class LevelView {
       flash: b.telegraphing && !blink(b.timer),
       offsetY: bob,
     };
+  }
+
+  /** Соболев и Лука: тот, кто ходит, и тот, кто сидит за столом. */
+  private syncDuo(b: Duo, draw: (key: object, v: SpriteView) => void): void {
+    const a = b.active;
+    const frame = b.defeated
+      ? 'freed'
+      : b.invuln > 0
+        ? 'hit'
+        : b.telegraphing || b.state === 'throw'
+          ? 'aim'
+          : 'idle';
+    const top = DUO.spriteHeight - b.h;
+    draw(a, {
+      id: a.who,
+      frame,
+      rect: { x: a.x, y: a.y - top, w: b.w, h: DUO.spriteHeight },
+      depth: DEPTH.boss,
+      flip: a.facing < 0,
+      visible: b.defeated || b.invuln === 0 || blink(b.invuln),
+      flash: b.telegraphing && !blink(b.timer),
+    });
+    const s = b.seated;
+    draw(s, {
+      id: s.who,
+      frame: b.state === 'swap' ? 'idle' : s.hp <= 0 ? 'freed' : 'sit',
+      rect: { x: s.x, y: s.y - top, w: b.w, h: DUO.spriteHeight },
+      depth: DEPTH.boss - 0.5,
+      flip: s.facing < 0,
+    });
+  }
+
+  private clock: Phaser.GameObjects.BitmapText | null = null;
+
+  /** Арена Щелина: год фазы на циферблате (ТЗ: «три фазы по дате на циферблате»). */
+  private syncClock(): void {
+    const b = this.world.boss;
+    if (!(b instanceof Shchelin)) {
+      this.clock?.setVisible(false);
+      return;
+    }
+    if (!this.clock) {
+      this.clock = this.scene.add
+        .bitmapText(0, 0, FONT_KEY, '', LABEL_SIZE)
+        .setOrigin(0.5, 0.5)
+        .setTint(0x000000)
+        .setDepth(DEPTH.mechanism);
+    }
+    this.clock
+      .setVisible(true)
+      .setText(String(b.year))
+      .setPosition(b.arena.x + CLOCK_FACE.x, b.arena.y + CLOCK_FACE.y);
   }
 
   /** Ведущий — спрайт: ноги по низу хитбокса, по центру; влево — зеркально. */

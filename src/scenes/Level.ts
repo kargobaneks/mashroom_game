@@ -335,6 +335,11 @@ export class Level extends BaseScene<LevelSceneData> {
       if (bossPart < 0 || bossPart === this.partIndex) this.world.warpToBoss();
       else this.restartLevel({ level: this.levelId, part: bossPart, warpToBoss: true });
     });
+    kb.on(`keydown-${DEBUG_KEYS.nextPart}`, () => {
+      const parts = LEVELS[this.levelId] ?? [];
+      if (this.mode.kind === 'play' && this.partIndex + 1 < parts.length)
+        this.restartLevel({ level: this.levelId, part: this.partIndex + 1 });
+    });
     kb.on(`keydown-${DEBUG_KEYS.levelSelect}`, () => {
       if (this.mode.kind === 'play') this.openLevelSelect();
     });

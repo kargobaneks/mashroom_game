@@ -117,3 +117,99 @@ export const ARCHIVE_ENEMIES = {
   commentGhost: { width: 16, height: 14, speed: 0.45, cycleFrames: 180, goneFrames: 60 },
   candle: { width: 12, height: 20, speed: 0.6, dropDx: 14 },
 } as const;
+
+/**
+ * Враги уровня 6 «Часовая башня» (ТЗ: «Крот-дедлайн и крыса-напоминалка»; поведение — по замерам
+ * оригинала, docs/refs/level6/LEVEL6_CLOCK_TOWER.md).
+ *  • Крот в каске стоит на уступе: цикл ~200 кадров — прячется в каску (неуязвим, не ранит),
+ *    высовывается и бросает 2 гаечных ключа с интервалом 36 кадров: дуга вверх-вперёд, падает
+ *    в 60–75 px от него.
+ *  • Крыса ходит (ТЗ: 1,5 px/кадр), раз в ~270 кадров бьёт себя током: пока искрит — неуязвима,
+ *    и пускает по полу два разряда в разные стороны, 3,5 px/кадр (замер: 3–4).
+ */
+export const CLOCK_ENEMIES = {
+  mole: {
+    width: 16,
+    height: 16,
+    hiddenFrames: 80,
+    riseFrames: 12,
+    outFrames: 108,
+    throwAt: [20, 56],
+    /** Бросает, только если игрок ближе стольких px по горизонтали. */
+    range: 128,
+    wrenchVx: 1.6,
+    wrenchVy: -2.2,
+    wrenchGravity: 0.15,
+    wrenchSize: 8,
+  },
+  rat: {
+    width: 16,
+    height: 12,
+    speed: 1.5,
+    sparkEveryFrames: 270,
+    sparkFrames: 60,
+    boltSpeed: 3.5,
+    boltWidth: 12,
+    boltHeight: 8,
+  },
+} as const;
+
+/**
+ * Уровень 7 «Салун» (разбор оригинала: docs/refs/level7/LEVEL7_WESTERN_WORLD.md).
+ * Заезды: валун под потолком срывается, когда герой ближе ~47 px, долетает до пути за ~25 кадров
+ * и разбивается; маятник — ядро на цепи, 7 положений по 12 кадров, размах ±37 px; летучая мышь
+ * влетает справа на высоте ~92 и пикирует на героя. Все трое неуязвимы для бросков (кроме мыши).
+ * Вход в шахту: дикобраз бегает ~2,5 px/кадр, разворачивается к герою, спрыгивает с краёв; моль
+ * кружит по овалу 24×25 и раз в 100–200 кадров роняет снаряд (1 px/кадр вниз); моль-пикировщик
+ * ждёт у потолка и пикирует по диагонали 2 px/кадр, потом падает вертикально.
+ * Не из замера — размеры, скорость мыши, змея в коробке.
+ */
+export const MINE_ENEMIES = {
+  boulder: { width: 16, height: 16, triggerDx: 47, gravity: 0.25, maxFall: 6 },
+  pendulum: {
+    width: 16,
+    height: 16,
+    /** Размах по горизонтали, px; 7 положений по 12 кадров (туда и обратно ~138–144 кадра). */
+    swing: 37,
+    positions: 7,
+    stepFrames: 12,
+  },
+  bat: { width: 16, height: 12, speed: 1.5, diveDx: 72, diveSpeed: 2.2 },
+  snakeBox: { width: 16, height: 16, reach: 48, outFrames: 40, coolFrames: 90, strike: 20 },
+  porcupine: { width: 16, height: 12, speed: 2.5 },
+  moth: {
+    width: 12,
+    height: 10,
+    radiusX: 12,
+    radiusY: 12.5,
+    circleFrames: 120,
+    dropMin: 100,
+    dropMax: 200,
+    shotSpeed: 1,
+    shotSize: 6,
+  },
+  diveMoth: { width: 12, height: 10, triggerDx: 72, speed: 2, fallSpeed: 2 },
+} as const;
+
+/**
+ * Враги уровня 8 «Нейросеть» (разбор оригинала, docs/refs/level8/LEVEL8_FUTURE_WORLD.md).
+ *  • Крыса с рогаткой: стоит, разворачивается к герою и стреляет камешком дугой, ~4 px/кадр.
+ *  • Механический пёс на колёсах: ездит по своей платформе 2 px/кадр, не съезжает с края;
+ *    герой рядом — гонится за ним 3,5 px/кадр (замер: 2–3,5).
+ * Кроты и электрокрысы — те же, что в часовой башне (CLOCK_ENEMIES).
+ * Не из замера — размеры, период стрельбы, радиус погони.
+ */
+export const FUTURE_ENEMIES = {
+  slingRat: {
+    width: 16,
+    height: 16,
+    everyFrames: 110,
+    aimFrames: 16,
+    range: 160,
+    shotVx: 2.6,
+    shotVy: -3,
+    gravity: 0.18,
+    shotSize: 6,
+  },
+  mechDog: { width: 16, height: 14, speed: 2, chaseSpeed: 3.5, chaseDx: 96, chaseDy: 40 },
+} as const;

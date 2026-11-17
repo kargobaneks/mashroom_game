@@ -5,7 +5,7 @@ import type { PickupKind } from './Pickup';
 import type { Player } from './Player';
 import type { World } from './World';
 
-export type ItemKind = 'box' | 'case' | 'letter';
+export type ItemKind = 'box' | 'case' | 'letter' | 'gear' | 'card' | 'metal' | 'scrap';
 /** Какая буква (для рисунка): ять, і десятеричное, фита. */
 export type LetterGlyph = 'yat' | 'i' | 'fita';
 export type ThrowDir = 'forward' | 'up' | 'ground';
@@ -43,6 +43,10 @@ export class Item implements Body {
   contents: PickupKind | null = null;
   /** Буква: какая (рисунок). */
   glyph: LetterGlyph = 'yat';
+  /** Сколько кадров ещё нельзя поднять (карта на арене уровня 7 «созревает» 1 с, ТЗ). */
+  lock = 0;
+  /** Металлический блок прилип к магниту: висит под ним твёрдым блоком. */
+  stuck = false;
 
   constructor(
     readonly kind: ItemKind,
@@ -67,11 +71,12 @@ export class Item implements Body {
 
   /** Лежащий предмет — твёрдый блок: в него упираются, на него встают. */
   get isSolid(): boolean {
-    return this.state === 'resting';
+    // Прилипший к магниту блок — часть магнита: герой отталкивается от него, не ударяясь головой.
+    return this.state === 'resting' && !this.stuck;
   }
 
   get canBePickedUp(): boolean {
-    return this.state === 'resting';
+    return this.state === 'resting' && this.lock === 0 && !this.stuck;
   }
 
   launch(owner: Player, dir: ThrowDir, facing: Facing): void {
@@ -90,7 +95,8 @@ export class Item implements Body {
 
   /** Предмет во что-то врезался: коробка разбивается, кейс падает и остаётся лежать. */
   impact(): void {
-    if (this.heavy) {
+    // Кейс и металлический блок не бьются: падают и остаются лежать.
+    if (this.heavy || this.kind === 'metal') {
       this.state = 'falling';
       this.vx = 0;
       this.vy = 0;
@@ -118,6 +124,8 @@ export class Item implements Body {
 
   update(world: World): void {
     if (this.ownerImmune > 0) this.ownerImmune--;
+    if (this.lock > 0) this.lock--;
+    if (this.stuck) return;
     switch (this.state) {
       case 'resting':
       case 'falling': {

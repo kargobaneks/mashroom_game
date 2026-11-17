@@ -9,6 +9,7 @@ import { overlaps } from './geom';
 import type { Item, ThrowDir } from './Item';
 import { moveBody, type Body } from './physics';
 import type { World } from './World';
+import type { Cart } from './Mechanisms';
 
 /** Состояния игрока из ТЗ. carry — стоит, идёт или прыгает с предметом в руках. */
 export type PlayerState =
@@ -84,6 +85,10 @@ export class Player implements Body {
   duetFrame = -Infinity;
   /** Отладка: неуязвимость (F1). */
   god = false;
+  /** Едет в вагонетке (уровень 7): ← → — тормоз и газ, а не ходьба. */
+  cart: Cart | null = null;
+  /** Выбит из вагонетки: летит в пропасть, сквозь вагонетки. */
+  ejected = false;
 
   constructor(
     readonly id: PlayerId,
@@ -205,7 +210,11 @@ export class Player implements Body {
     const base = heavy ? P.walkSpeedHeavyItem : this.carrying ? P.walkSpeedLightItem : P.walkSpeed;
     const slow = 1 / (1 + this.slowStacks);
     const target = this.crouching ? 0 : dir * base * slow;
-    if (this.onGround && world.onIce(this)) {
+    if (this.cart) {
+      // В вагонетке ← → — тормоз и газ: на дне её везёт она сама, в прыжке летит вместе с ней.
+      this.vx = this.onGround ? 0 : this.cart.vx;
+      this.facing = 1;
+    } else if (this.onGround && world.onIce(this)) {
       // Скользкий пол холодильника: разгон и торможение не сразу (ТЗ: «инерция 0,05»).
       const d = target - this.vx;
       this.vx += Math.max(-FREEZER.ice.accel, Math.min(FREEZER.ice.accel, d));
@@ -238,6 +247,21 @@ export class Player implements Body {
     if (this.jumping && !input.down('jump') && this.vy < P.jumpCutVelocity)
       this.vy = P.jumpCutVelocity;
 
+    // Висит под магнитом: прыжок или бросок — блок прилипает к магниту, герой отпускает его
+    // (прыжком — отталкивается от блока, как от опоры).
+    if (world.hangsOnMagnet(this) && (input.pressed('jump') || input.pressed('action'))) {
+      world.stickToMagnet(this);
+      if (input.pressed('jump')) {
+        this.vy = P.jumpVelocity;
+        this.jumping = true;
+        world.emit({ type: 'sfx', name: 'jump' });
+      }
+      this.jumpBufferTimer = 0;
+      this.physics(world, true);
+      this.recomputeState();
+      return;
+    }
+
     // Действие: бросить то, что в руках, или взять — уперевшись (стрелка в сторону предмета зажата).
     // ↑ + действие с пустыми руками — реплика дуэтом.
     if (input.pressed('action')) {
@@ -259,8 +283,15 @@ export class Player implements Body {
 
   /** Гравитация, движение, столкновения, экран, опасные тайлы. */
   private physics(world: World, clampToScreen: boolean): void {
-    const g = P.gravity + world.extraGravityAt(this);
-    this.vy = Math.min(this.vy + g, P.maxFallSpeed);
+    // Магнит (уровень 8) тянет героя с металлическим блоком вверх вместо гравитации.
+    const lift = this.state === 'hurt' || this.state === 'stunned' ? null : world.magnetLift(this);
+    if (lift !== null) {
+      this.vy = lift;
+      this.jumping = false;
+    } else {
+      const g = P.gravity + world.extraGravityAt(this);
+      this.vy = Math.min(this.vy + g, P.maxFallSpeed);
+    }
     // Ветер от крыльев босса сдувает (и в прыжке, и с ящиком).
     const wind = this.state === 'hidden' ? 0 : world.windFor(this);
     this.vx += wind;
@@ -488,6 +519,8 @@ export class Player implements Body {
 
   kill(world: World): void {
     if (this.state === 'dead') return;
+    if (this.cart) this.cart.rider = null;
+    this.cart = null;
     this.dropCarried();
     if (this.heldBy) this.breakFree();
     this.setStanding();
@@ -507,6 +540,8 @@ export class Player implements Body {
 
   startRespawn(x: number, y: number): void {
     this.placeAt(x, y);
+    this.cart = null;
+    this.ejected = false;
     this.state = 'respawn';
     this.stateTimer = P.respawnFrames;
     this.jumping = false;

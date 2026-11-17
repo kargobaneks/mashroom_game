@@ -64,6 +64,17 @@ export const ITEMS = {
   case: { width: 16, height: 16, heavy: true, hideable: true },
   /** Буква ѣ, і, ѳ (арена Микитко): лёгкая, разбивается о цель, под ней не спрятаться. */
   letter: { width: 16, height: 16, heavy: false, hideable: false },
+  /** Шестерёнка Щелина (арена уровня 6): лёгкая, разбивается о цель, под ней не спрятаться. */
+  gear: { width: 16, height: 16, heavy: false, hideable: false },
+  /** Карта Соболева и Луки (арена уровня 7): лёгкая, разбивается о цель. */
+  card: { width: 16, height: 12, heavy: false, hideable: false },
+  /**
+   * Металлический блок (уровень 8): носится как ящик, в том числе в прыжке (замер); не бьётся —
+   * врезавшись, падает и лежит. Его тянет магнит.
+   */
+  metal: { width: 16, height: 16, heavy: false, hideable: true },
+  /** Обломок от удара шара (арена Маркова): лёгкий, разбивается о цель. */
+  scrap: { width: 16, height: 12, heavy: false, hideable: false },
   gravity: 0.25,
   maxFallSpeed: 4,
 } as const;

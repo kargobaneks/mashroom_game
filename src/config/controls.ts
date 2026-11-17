@@ -37,6 +37,8 @@ export const DEBUG_KEYS = {
   levelSelect: 'F3',
   hitboxes: 'F4',
   slowMotion: 'F5',
+  /** Следующая часть уровня (например, сразу к заезду на вагонетке). */
+  nextPart: 'F6',
 } as const satisfies Record<string, KeyName>;
 
 /** Замедление по F5: логика идёт раз в столько шагов (×0,25). */

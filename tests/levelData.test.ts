@@ -41,7 +41,11 @@ describe('level data: every part of every level', () => {
           ).toBe(true);
           const tx = Math.floor(s.respawn.x / T);
           const ty = s.respawn.y / T;
-          expect(level.grid.isSolid(tx, ty) || level.grid.isOneway(tx, ty)).toBe(true);
+          // В заезде (уровень 7) возрождаются в вагонетке на рельсе.
+          const inCart = level.spawns.some(
+            (sp) => sp.type === 'cart' && Math.abs(sp.x - s.respawn.x) < 16,
+          );
+          expect(level.grid.isSolid(tx, ty) || level.grid.isOneway(tx, ty) || inCart).toBe(true);
         }
       });
 

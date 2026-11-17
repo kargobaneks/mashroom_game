@@ -19,6 +19,15 @@ import { buildLevel4Fridge } from './levels/level4_1.mjs';
 import { buildLevel5Warehouse } from './levels/level5_1.mjs';
 import { buildLevel5Hall } from './levels/level5_2.mjs';
 import { buildLevel5Arena } from './levels/level5_arena.mjs';
+import { buildLevel6Tower } from './levels/level6_1.mjs';
+import { buildLevel6Arena } from './levels/level6_arena.mjs';
+import { buildLevel7Entrance } from './levels/level7_1.mjs';
+import { buildLevel7Arena } from './levels/level7_arena.mjs';
+import { buildLevel7Ride1, buildLevel7Ride2, buildLevel7Ride3 } from './levels/level7_ride.mjs';
+import { buildLevel8Factory } from './levels/level8_1.mjs';
+import { buildLevel8Folds } from './levels/level8_2.mjs';
+import { buildLevel8Magnet } from './levels/level8_3.mjs';
+import { buildLevel8Arena, buildLevel8Bonus } from './levels/level8_arena.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const levelsDir = join(root, 'src/data/levels');
@@ -48,6 +57,22 @@ const levels = {
   level5_1: buildLevel5Warehouse,
   level5_2: buildLevel5Hall,
   level5_arena: buildLevel5Arena,
+  // Уровень 6 — часовая башня: 13 экранов лесенкой (вправо, вверх, вправо, вверх, вправо).
+  level6_1: buildLevel6Tower,
+  level6_arena: buildLevel6Arena,
+  // Уровень 7 — вход в шахту, три заезда на вагонетке (как в оригинале), арена Соболева и Луки.
+  level7_1: buildLevel7Entrance,
+  level7_2: buildLevel7Ride1,
+  level7_3: buildLevel7Ride2,
+  level7_4: buildLevel7Ride3,
+  level7_arena: buildLevel7Arena,
+  // Уровень 8 — завод с давящими блоками, складные платформы, бонус с Петровским, магнит
+  // и механические псы, арена Маркова на кране (как в оригинале).
+  level8_1: buildLevel8Factory,
+  level8_2: buildLevel8Folds,
+  level8_bonus: buildLevel8Bonus,
+  level8_3: buildLevel8Magnet,
+  level8_arena: buildLevel8Arena,
 };
 for (const [name, build] of Object.entries(levels)) {
   const artPath = join(tilesetsDir, `${name}.png`);

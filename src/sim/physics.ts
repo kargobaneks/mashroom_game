@@ -8,6 +8,11 @@ export interface Body extends Rect {
   onGround: boolean;
 }
 
+/** Платформа «только сверху»; dy — на сколько она сдвинулась по вертикали за этот кадр. */
+export interface PlatformRect extends Rect {
+  readonly dy?: number;
+}
+
 export interface MoveOptions {
   /** Проваливаться сквозь oneway-платформы (вниз + прыжок). */
   readonly dropThrough?: boolean;
@@ -84,7 +89,10 @@ export function moveBody(b: Body, grid: TileGrid, opts: MoveOptions = {}): MoveR
     if (!opts.dropThrough) {
       for (const p of opts.platforms ?? []) {
         const hOverlap = b.x < p.x + p.w && b.x + b.w > p.x;
-        if (hOverlap && oldBottom <= p.y + EPS && newBottom >= p.y) landY = Math.min(landY, p.y);
+        // Поднявшаяся за этот кадр платформа (цепь) могла проскочить мимо ног — допуск на её ход.
+        const rose = Math.max(0, -((p as PlatformRect).dy ?? 0));
+        if (hOverlap && oldBottom <= p.y + rose + EPS && newBottom >= p.y)
+          landY = Math.min(landY, p.y);
       }
     }
     if (landY !== Infinity) {

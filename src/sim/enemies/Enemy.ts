@@ -15,7 +15,18 @@ export type EnemyKind =
   | 'phone'
   | 'commentGhost'
   | 'candle'
-  | 'candleCeil';
+  | 'candleCeil'
+  | 'mole'
+  | 'rat'
+  | 'boulder'
+  | 'pendulum'
+  | 'bat'
+  | 'snakeBox'
+  | 'porcupine'
+  | 'moth'
+  | 'diveMoth'
+  | 'slingRat'
+  | 'mechDog';
 
 let nextEnemyId = 1;
 

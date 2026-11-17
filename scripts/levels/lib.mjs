@@ -255,7 +255,7 @@ function obj(id, type, x, y, width, height, props, point) {
     visible: true,
     properties: Object.entries(props).map(([name, value]) => ({
       name,
-      type: typeof value === 'number' ? 'int' : 'string',
+      type: typeof value === 'number' ? (Number.isInteger(value) ? 'int' : 'float') : 'string',
       value,
     })),
   };

@@ -24,10 +24,27 @@ export interface Segment extends Rect {
 /** Точка появления сущности. Координата — низ-центр (ноги). */
 export interface SpawnPoint extends Point {
   readonly id: number;
-  readonly type: 'enemy' | 'item' | 'pickup' | 'bossPoint' | 'lift' | 'floater' | 'ammo' | 'melt';
+  readonly type:
+    | 'enemy'
+    | 'item'
+    | 'pickup'
+    | 'bossPoint'
+    | 'lift'
+    | 'floater'
+    | 'ammo'
+    | 'melt'
+    | 'chain'
+    | 'cart'
+    | 'crusher'
+    | 'fold'
+    | 'magnet';
   readonly kind: string;
   /** Для ящика: что под ним спрятано (появляется, когда ящик поднимают). */
   readonly contains?: string;
+  /** Цепь (уровень 6): размер петли, px, и начальная фаза (доля оборота). */
+  readonly w?: number;
+  readonly h?: number;
+  readonly phase?: number;
 }
 
 export interface Zone extends Rect {
@@ -82,6 +99,15 @@ function prop(o: TiledObject, name: string): unknown {
   return o.properties?.find((p) => p.name === name)?.value;
 }
 
+function numProps(o: TiledObject, names: readonly string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const n of names) {
+    const v = prop(o, n);
+    if (typeof v === 'number') out[n] = v;
+  }
+  return out;
+}
+
 function objType(o: TiledObject): string {
   return o.type ?? o.class ?? '';
 }
@@ -109,6 +135,11 @@ const SPAWN_TYPES: readonly SpawnPoint['type'][] = [
   'floater',
   'ammo',
   'melt',
+  'chain',
+  'cart',
+  'crusher',
+  'fold',
+  'magnet',
 ];
 
 /** Разобрать карту Tiled: слои solid / oneway / hazard, objects и camera. */
@@ -161,6 +192,7 @@ export function parseTiledLevel(map: TiledMap): LevelData {
         x: o.x,
         y: o.y,
         ...(typeof hidden === 'string' ? { contains: hidden } : {}),
+        ...numProps(o, ['w', 'h', 'phase']),
       });
     }
   }
