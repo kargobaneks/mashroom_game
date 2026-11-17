@@ -3577,6 +3577,377 @@ const markov: SpriteDef = {
   },
 };
 
+// ——— Уровень 9 «Студия Конца Истории» ———
+
+/** Разделить кадр на слои: в каждом — только свои буквы, остальное прозрачно. */
+function onlyKeys(rows: readonly string[], keys: string): string[] {
+  return rows.map((r) => [...r].map((c) => (keys.includes(c) ? c : '.')).join(''));
+}
+
+/** Шар с потолка арены — единственное оружие против робота: светящаяся бирюзовая сфера. */
+const orb: SpriteDef = {
+  w: 14,
+  h: 14,
+  palette: { D: 0x000000, T: 0x00a8a8, W: 0xb8f8f8 },
+  frames: {
+    idle: grid(14, 14, (x, y) => {
+      const d = Math.hypot(x - 6.5, y - 6.5);
+      if (d > 6.9) return '.';
+      if (d > 5.7) return 'D';
+      if (Math.hypot(x - 4.5, y - 4.5) < 2.2) return 'W';
+      // Полоска-шов по экватору.
+      if (y === 7 && d < 5) return 'D';
+      return 'T';
+    }),
+  },
+};
+
+/** Искра с хвоста робота: бежит по полу. Жёлто-белая, с тёмным контуром. */
+const spark: SpriteDef = {
+  w: 8,
+  h: 8,
+  palette: { D: 0x000000, Y: 0xf8b800, W: 0xfcfcfc },
+  frames: {
+    idle: [
+      '...DD...',
+      '.D.YD.D.',
+      '..DYYD..',
+      'DYYWWYYD',
+      'DYYWWYYD',
+      '..DYYD..',
+      '.D.YD.D.',
+      '...DD...',
+    ],
+  },
+};
+
+/** Кулак-ракета робота. */
+const fist: SpriteDef = {
+  w: 16,
+  h: 16,
+  palette: { D: 0x000000, M: 0x0058f8, L: 0x3cbcfc },
+  frames: {
+    idle: [
+      '....DDDDDDD.....',
+      '..DDLLLLLLLDD...',
+      '.DLLLDLLDLLLLD..',
+      '.DLLLDLLDLLLLD..',
+      'DLLMMDMMDMMLLLD.',
+      'DLMMMDMMDMMMLLD.',
+      'DMMMMMMMMMMMMMDD',
+      'DMMMMMMMMMMMMMDL',
+      'DDMMMMMMMMMMMDLL',
+      '.DMMMMMMMMMMMDLL',
+      '.DDMMMMMMMMMDDL.',
+      '..DDDMMMMMDDD...',
+      '....DDDDDDD.....',
+      '................',
+      '................',
+      '................',
+    ],
+  },
+};
+
+/** Реактивное пламя под роботом: бьёт вниз, два кадра. */
+const jet: SpriteDef = {
+  w: 24,
+  h: 16,
+  palette: { R: 0xf83800, Y: 0xfce0a8, W: 0xfcfcfc },
+  frames: {
+    a: grid(24, 16, (x, y) => {
+      const half = 11 - y * 0.6;
+      const d = Math.abs(x - 11.5);
+      if (d > half) return '.';
+      if (d < half - 6) return 'W';
+      return d < half - 3 ? 'Y' : 'R';
+    }),
+    b: grid(24, 16, (x, y) => {
+      const half = 10 - y * 0.55 + ((y + x) % 3 === 0 ? 1 : 0);
+      const d = Math.abs(x - 11.5);
+      if (d > half) return '.';
+      if (d < half - 5) return 'W';
+      return d < half - 2.5 ? 'Y' : 'R';
+    }),
+  },
+};
+
+/** Пушка на потолочном рельсе: серый корпус, ствол вниз-вперёд. */
+const cannon: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, G: 0xbcbcbc, M: 0x7c7c7c },
+  frames: {
+    idle: [
+      'DDDDDDDDDDDDDDDD',
+      'DGGGGGGGGGGGGGGD',
+      'DMMMMMMMMMMMMMMD',
+      '.DDDDDDDDDDDDDD.',
+      '...DGGGGGGGD....',
+      '..DGGGGGGGGGD...',
+      '..DGGMMMMGGGD...',
+      '..DGMMMMMMGGDDD.',
+      '...DMMMMMMGDGGD.',
+      '....DDDDDDDGGGD.',
+      '..........DGMMD.',
+      '..........DDDD..',
+    ],
+  },
+};
+
+/** Шар пушки: зелёный, неуязвимый, отскакивает. */
+const cannonBall: SpriteDef = {
+  w: 10,
+  h: 10,
+  palette: { D: 0x000000, G: 0x00a800, L: 0xb8f818 },
+  frames: {
+    idle: grid(10, 10, (x, y) => {
+      const d = Math.hypot(x - 4.5, y - 4.5);
+      if (d > 4.9) return '.';
+      if (d > 3.8) return 'D';
+      return Math.hypot(x - 3, y - 3) < 1.6 ? 'L' : 'G';
+    }),
+  },
+};
+
+/** Обломок потолка (побег): кусок бетона. */
+const rubble: SpriteDef = {
+  w: 16,
+  h: 12,
+  palette: { D: 0x000000, G: 0x7c7c7c, W: 0xbcbcbc },
+  frames: {
+    hang: [
+      '.DDDDDDDDDDDDDD.',
+      'DWWWWGWWWWWGWWWD',
+      'DWGWWWWWGWWWWGWD',
+      'DWWWWWGWWWWWWWGD',
+      'DGWWWWWWWWGWWWGD',
+      'DGGWGWWWWWWWWGGD',
+      '.DGGGWWWGWWWGGD.',
+      '.DGGGGGGGGWGGGD.',
+      '..DGGDGGGGGGGD..',
+      '...DD.DDGGGDD...',
+      '.......DDDD.....',
+      '................',
+    ],
+    shake: [
+      '................',
+      '.DDDDDDDDDDDDDD.',
+      'DWWWWGWWWWWGWWWD',
+      'DWGWWWWWGWWWWGWD',
+      'DWWWWWGWWWWWWWGD',
+      'DGWWWWWWWWGWWWGD',
+      'DGGWGWWWWWWWWGGD',
+      '.DGGGWWWGWWWGGD.',
+      '.DGGGGGGGGWGGGD.',
+      '..DGGDGGGGGGGD..',
+      '...DD.DDGGGDD...',
+      '.......DDDD.....',
+    ],
+  },
+};
+
+/** Рычаг конвейера: низкий пульт с красной ручкой (16×8). */
+const lever: SpriteDef = {
+  w: 16,
+  h: 8,
+  palette: { D: 0x000000, G: 0xbcbcbc, R: 0xd82800 },
+  frames: {
+    left: [
+      '.DD.............',
+      'DRRD............',
+      'DRRDD...........',
+      '.DD.DD..........',
+      'DDDDDDDDDDDDDDDD',
+      'DGGGGGGGGGGGGGGD',
+      'DGDGDGGGGGGRRRGD',
+      'DDDDDDDDDDDDDDDD',
+    ],
+    right: [
+      '.............DD.',
+      '............DRRD',
+      '...........DDRRD',
+      '..........DD.DD.',
+      'DDDDDDDDDDDDDDDD',
+      'DGGGGGGGGGGGGGGD',
+      'DGRRRGGGGGGDGDGD',
+      'DDDDDDDDDDDDDDDD',
+    ],
+  },
+};
+
+/** Невидимые точки (вылет птиц, лазер): кадр-пустышка, на экран не попадает. */
+const blank: SpriteDef = {
+  w: 1,
+  h: 1,
+  palette: { D: 0x000000 },
+  frames: { idle: ['.'] },
+};
+
+// Дмитрий Саймс (сцена перед аппаратной, фото — в чате 17.11): лысый, очки в тонкой тёмной
+// оправе, седая короткая борода и усы, тёмный костюм, белая рубашка, красный галстук в полоску.
+// Буквы: D — чёрный, S — кожа, G — седина; W — рубашка, R/K — галстук (второй слой).
+const SIMES_HEAD = mirror([
+  '........DDDD',
+  '......DDSSSS',
+  '.....DSSSSSS',
+  '....DSSSSSSS',
+  '....DSSSSSSS',
+  '...DSSSSSSSS',
+  '...DSSSSSSSS',
+  '...DSSSSSSSS',
+  '..DSDDDDDDSS',
+  '..DSDSSSSDDD',
+  '..DSDSDSSDSS',
+  '..DSDDDDDDSS',
+  '...DSSSSSSSS',
+  '...DGSSSSSSS',
+  '...DGGSSGGGG',
+  '...DGGGGGDDD',
+  '...DGGGGGGGG',
+  '....GGGGGGGG',
+  '.....GGGGGGG',
+  '......GGGGGG',
+]);
+const SIMES_TORSO = mirror([
+  '.......DGGGG',
+  '....DDDDDWGG',
+  '..DDDDDDDWWR',
+  '.DDDDDDDDWWK',
+  '.DDDDDDDDDWR',
+  '.DD.DDDDDDWK',
+  '.DD.DDDDDDDR',
+  '.DD.DDDDDDDK',
+  '.DD.DDDDDDDD',
+  '.DD.DDDDDDDD',
+  '.DD.DDDDDDDD',
+  '.SS.DDDDDDDD',
+  '.SS.DDDDDDDD',
+  '....DDDDDDDD',
+]);
+const SIMES = [...SIMES_HEAD, ...SIMES_TORSO, ...BORDACHEV_LEGS];
+const simes: SpriteDef = {
+  w: 24,
+  h: 40,
+  palette: { D: 0x000000, S: 0xfcbcb0, G: 0xbcbcbc },
+  frames: { idle: onlyKeys(SIMES, 'DSG') },
+};
+const simesShirt: SpriteDef = {
+  w: 24,
+  h: 40,
+  palette: { W: 0xfcfcfc, R: 0xd82800, K: 0x881400 },
+  frames: { idle: onlyKeys(SIMES, 'WRK') },
+};
+
+/**
+ * Машина Конца Истории — робот-двойник Дефицита Будущего (робот Толстопуза оригинала): чиновник
+ * в костюме — синий стальной корпус-пиджак, белая рубашка и красный галстук, вместо лица —
+ * циферблат со стрелками, навсегда стоящими на одной дате; цилиндр. Смотрит влево, на героя.
+ * 96×96, три слоя по 3 цвета. Фазы (ТЗ: между фазами отваливается деталь): p2 — без цилиндра,
+ * p3 — без правой (дальней) руки.
+ */
+type Shape = { inside: (x: number, y: number) => boolean; fill: (x: number, y: number) => string };
+const ell = (cx: number, cy: number, rx: number, ry: number) => (x: number, y: number) =>
+  ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1;
+const rect = (x0: number, y0: number, x1: number, y1: number) => (x: number, y: number) =>
+  x >= x0 && x <= x1 && y >= y0 && y <= y1;
+/** Сталь: светлая кромка сверху-слева, тень снизу-справа. */
+const steel =
+  (inside: (x: number, y: number) => boolean) =>
+  (x: number, y: number): string =>
+    !inside(x - 2, y - 2) ? 'L' : !inside(x + 3, y + 3) ? 'N' : 'M';
+
+function machineFrame(phase: 1 | 2 | 3): string[] {
+  const g: string[][] = Array.from({ length: 96 }, () => Array<string>(96).fill('.'));
+  const shapes: Shape[] = [];
+  const add = (inside: Shape['inside'], fill: Shape['fill'] = steel(inside)) =>
+    shapes.push({ inside, fill });
+  // Дальняя (правая) рука: плечо и кулак внизу. В фазе 3 — культя.
+  if (phase < 3) {
+    add(rect(78, 50, 88, 70));
+    add(ell(86, 74, 8, 7));
+  }
+  add(ell(78, 48, 10, 9));
+  // Ноги и ботинки.
+  add(rect(30, 76, 42, 88));
+  add(rect(56, 76, 68, 88));
+  add(ell(34, 92, 13, 5), (_x, y) => (y < 91 ? 'L' : 'M'));
+  add(ell(62, 92, 13, 5), (_x, y) => (y < 91 ? 'L' : 'M'));
+  // Корпус-пиджак.
+  const torso = ell(48, 58, 31, 23);
+  add(torso, (x, y) => {
+    // Рубашка: V от шеи, галстук посередине, пуговицы.
+    const v = y >= 36 && y <= 60 && Math.abs(x + 0.5 - 48) <= (60 - y) * 0.42;
+    if (v) {
+      if (Math.abs(x + 0.5 - 48) <= 2 + (y > 52 ? 1 : 0) && y >= 38) return y === 40 ? 'D' : 'R';
+      return 'W';
+    }
+    if (Math.abs(x + 0.5 - 48) <= (60 - y) * 0.42 + 1.2 && y >= 36 && y <= 61) return 'D';
+    if ((y === 66 || y === 72) && Math.abs(x - 47.5) < 2) return 'Y';
+    if (y === 61 && Math.abs(x - 47.5) < 1) return 'D';
+    // Заклёпки по шву.
+    if (y === 46 && (x === 28 || x === 68)) return 'Y';
+    return steel(torso)(x, y);
+  });
+  // Ближняя (левая) рука вытянута вперёд: плечо, предплечье, кулак — отсюда стреляет.
+  add(ell(20, 48, 10, 9));
+  add(rect(5, 38, 18, 49));
+  add(ell(7, 43, 7, 8));
+  // Шея и голова-циферблат в золотом ободе.
+  add(rect(42, 30, 54, 37));
+  const head = ell(46, 22, 13, 12);
+  add(head, (x, y) => {
+    const r = Math.hypot(x + 0.5 - 46, y + 0.5 - 22);
+    if (r > 11.5) return 'D';
+    if (r > 9.8) return 'Y';
+    if (r > 9) return 'D';
+    // Риски на 12, 3, 6, 9.
+    const dx = x + 0.5 - 46;
+    const dy = y + 0.5 - 22;
+    if (r > 7 && (Math.abs(dx) < 1 || Math.abs(dy) < 1)) return 'D';
+    // Стрелки замерли: часовая — на 11, минутная — на 12 (без пяти полночь).
+    const onHand = (ang: number, len: number) => {
+      const t = dx * Math.cos(ang) + dy * Math.sin(ang);
+      const n = Math.abs(-dx * Math.sin(ang) + dy * Math.cos(ang));
+      return t >= 0 && t <= len && n < 0.9;
+    };
+    if (onHand(-Math.PI / 2, 7.5) || onHand(-Math.PI / 2 - Math.PI / 6, 5.5)) return 'D';
+    if (r < 1.3) return 'R';
+    return 'W';
+  });
+  // Цилиндр (до фазы 2).
+  if (phase === 1) {
+    add(rect(31, 8, 61, 10), (_x, y) => (y === 8 ? 'H' : 'D'));
+    add(rect(36, 0, 56, 9), (x, y) => (y >= 5 && y <= 6 ? 'R' : x < 40 ? 'H' : 'K'));
+  }
+  // Рисуем по порядку; контур — там, где сосед вне фигуры.
+  for (const s of shapes)
+    for (let y = 0; y < 96; y++)
+      for (let x = 0; x < 96; x++) {
+        if (!s.inside(x, y)) continue;
+        const rim =
+          !s.inside(x - 1, y) || !s.inside(x + 1, y) || !s.inside(x, y - 1) || !s.inside(x, y + 1);
+        g[y]![x] = rim ? 'D' : s.fill(x, y);
+      }
+  return g.map((r) => r.join(''));
+}
+const MACHINE_FRAMES = { p1: machineFrame(1), p2: machineFrame(2), p3: machineFrame(3) };
+const machineLayer = (keys: string, palette: Record<string, number>): SpriteDef => ({
+  w: 96,
+  h: 96,
+  palette,
+  frames: {
+    p1: onlyKeys(MACHINE_FRAMES.p1, keys),
+    p2: onlyKeys(MACHINE_FRAMES.p2, keys),
+    p3: onlyKeys(MACHINE_FRAMES.p3, keys),
+  },
+});
+/** Сталь корпуса: контур, синий, голубой (как робот оригинала — виден в темноте). */
+const machineSteel = machineLayer('DML', { D: 0x000000, M: 0x0058f8, L: 0x3cbcfc });
+/** Рубашка и циферблат, галстук, золото ободов и пуговиц. */
+const machineTrim = machineLayer('WRY', { W: 0xfcfcfc, R: 0xd82800, Y: 0xf8b800 });
+/** Цилиндр (серый с тёмной стороной) и тени стали — тёмно-синие, не чёрные: в темноте арены видно. */
+const machineHat = machineLayer('HKN', { H: 0x7c7c7c, K: 0x3c3c3c, N: 0x0000bc });
+
 export const SPRITES = {
   bot,
   asterisk,
@@ -3648,6 +4019,23 @@ export const SPRITES = {
   craneBody,
   wreckingBall,
   markov,
+  orb,
+  spark,
+  fist,
+  jet,
+  cannon,
+  cannonBall,
+  rubble,
+  lever,
+  simes,
+  simesShirt,
+  machineSteel,
+  machineTrim,
+  machineHat,
+  ambushRat: rat,
+  nest: blank,
+  eggNest: blank,
+  laser: blank,
 } as const satisfies Record<string, SpriteDef>;
 
 export type SpriteId = keyof typeof SPRITES;

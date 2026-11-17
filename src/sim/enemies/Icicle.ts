@@ -1,10 +1,10 @@
-import { FREEZER_ENEMIES } from '../../config/enemies';
+import { FREEZER_ENEMIES, LAIR_ENEMIES } from '../../config/enemies';
 import type { Point } from '../geom';
 import { moveBody } from '../physics';
 import type { World } from '../World';
 import { Enemy } from './Enemy';
 
-const C = FREEZER_ENEMIES.icicle;
+type IcicleConfig = typeof FREEZER_ENEMIES.icicle | typeof LAIR_ENEMIES.rubble;
 
 export type IcicleState = 'hang' | 'shake' | 'fall' | 'regrow';
 
@@ -18,8 +18,13 @@ export class Icicle extends Enemy {
   private timer = 0;
   private readonly homeY: number;
 
-  constructor(at: Point, spawnId: number) {
-    super('icicle', C.width, C.height, at, spawnId);
+  private readonly C: IcicleConfig;
+
+  /** rubble — обломок потолка при побеге (уровень 9): то же поведение, свой размер. */
+  constructor(at: Point, spawnId: number, kind: 'icicle' | 'rubble' = 'icicle') {
+    const C = kind === 'rubble' ? LAIR_ENEMIES.rubble : FREEZER_ENEMIES.icicle;
+    super(kind, C.width, C.height, at, spawnId);
+    this.C = C;
     this.homeY = this.y;
   }
 
@@ -48,6 +53,7 @@ export class Icicle extends Enemy {
   }
 
   protected update(world: World): void {
+    const C = this.C;
     switch (this.state) {
       case 'hang': {
         const cx = this.x + this.w / 2;
@@ -89,7 +95,7 @@ export class Icicle extends Enemy {
   private shatter(world: World): void {
     if (this.state === 'regrow') return;
     this.state = 'regrow';
-    this.timer = C.regrowFrames;
+    this.timer = this.C.regrowFrames;
     this.vy = 0;
     world.emit({ type: 'sfx', name: 'deflect' });
   }

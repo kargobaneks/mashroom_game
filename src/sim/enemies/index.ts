@@ -1,4 +1,4 @@
-import type { Point } from '../geom';
+import type { SpawnPoint } from '../level';
 import { Asterisk } from './Asterisk';
 import { Barista } from './Barista';
 import { Bot } from './Bot';
@@ -9,6 +9,7 @@ import { Crab } from './Crab';
 import { Gull } from './Gull';
 import { Headline } from './Headline';
 import { Icicle } from './Icicle';
+import { AmbushRat, Cannon, Laser, Nest } from './LairEnemies';
 import { MechDog, SlingRat } from './FutureEnemies';
 import { DiveMoth, Moth, Porcupine } from './MineCritters';
 import { Bat, Boulder, Pendulum, SnakeBox } from './MineHazards';
@@ -18,7 +19,10 @@ import { Rat } from './Rat';
 import { Rigger } from './Rigger';
 import type { Enemy, EnemyKind } from './Enemy';
 
-const FACTORIES: Record<EnemyKind, (at: Point, spawnId: number) => Enemy> = {
+/** Точка появления: низ-центр и свойства точки на карте (длина луча, фаза). */
+type At = Pick<SpawnPoint, 'x' | 'y' | 'h' | 'phase'>;
+
+const FACTORIES: Record<EnemyKind, (at: At, spawnId: number) => Enemy> = {
   bot: (at, id) => new Bot(at, id),
   asterisk: (at, id) => new Asterisk(at, id),
   barista: (at, id) => new Barista(at, id),
@@ -43,13 +47,23 @@ const FACTORIES: Record<EnemyKind, (at: Point, spawnId: number) => Enemy> = {
   diveMoth: (at, id) => new DiveMoth(at, id),
   slingRat: (at, id) => new SlingRat(at, id),
   mechDog: (at, id) => new MechDog(at, id),
+  nest: (at, id) => new Nest(at, id),
+  eggNest: (at, id) => new Nest(at, id, true),
+  laser: (at, id) => new Laser(at, id),
+  cannon: (at, id) => new Cannon(at, id),
+  // Шар пушки появляется только из пушки; на карте его нет.
+  cannonBall: () => {
+    throw new Error('cannonBall is spawned by a cannon');
+  },
+  ambushRat: (at, id) => new AmbushRat(at, id),
+  rubble: (at, id) => new Icicle(at, id, 'rubble'),
 };
 
 export function isEnemyKind(k: string): k is EnemyKind {
   return k in FACTORIES;
 }
 
-export function createEnemy(kind: EnemyKind, at: Point, spawnId: number): Enemy {
+export function createEnemy(kind: EnemyKind, at: At, spawnId: number): Enemy {
   return FACTORIES[kind](at, spawnId);
 }
 

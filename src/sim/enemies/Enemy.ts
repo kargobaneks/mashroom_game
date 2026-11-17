@@ -26,7 +26,14 @@ export type EnemyKind =
   | 'moth'
   | 'diveMoth'
   | 'slingRat'
-  | 'mechDog';
+  | 'mechDog'
+  | 'nest'
+  | 'eggNest'
+  | 'laser'
+  | 'cannon'
+  | 'cannonBall'
+  | 'ambushRat'
+  | 'rubble';
 
 let nextEnemyId = 1;
 

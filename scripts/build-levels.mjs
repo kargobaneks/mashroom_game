@@ -28,6 +28,17 @@ import { buildLevel8Factory } from './levels/level8_1.mjs';
 import { buildLevel8Folds } from './levels/level8_2.mjs';
 import { buildLevel8Magnet } from './levels/level8_3.mjs';
 import { buildLevel8Arena, buildLevel8Bonus } from './levels/level8_arena.mjs';
+import { buildLevel9Conveyors } from './levels/level9_1.mjs';
+import { buildLevel9Scaffold } from './levels/level9_2.mjs';
+import { buildLevel9Press } from './levels/level9_3.mjs';
+import { buildLevel9Cannons } from './levels/level9_4.mjs';
+import { buildLevel9Danger } from './levels/level9_5.mjs';
+import {
+  buildLevel9Arena,
+  buildLevel9Bonus,
+  buildLevel9Escape,
+  buildLevel9Simes,
+} from './levels/level9_extra.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const levelsDir = join(root, 'src/data/levels');
@@ -73,6 +84,18 @@ const levels = {
   level8_bonus: buildLevel8Bonus,
   level8_3: buildLevel8Magnet,
   level8_arena: buildLevel8Arena,
+  // Уровень 9 — логово (как в оригинале): конвейеры, леса с птицами, бонус с Петровским,
+  // лазерный пресс, коридор с пушками, коридор DANGER, приёмная с Саймсом, аппаратная
+  // (Машина Конца Истории), побег (ТЗ).
+  level9_1: buildLevel9Conveyors,
+  level9_2: buildLevel9Scaffold,
+  level9_bonus: buildLevel9Bonus,
+  level9_3: buildLevel9Press,
+  level9_4: buildLevel9Cannons,
+  level9_5: buildLevel9Danger,
+  level9_simes: buildLevel9Simes,
+  level9_arena: buildLevel9Arena,
+  level9_escape: buildLevel9Escape,
 };
 for (const [name, build] of Object.entries(levels)) {
   const artPath = join(tilesetsDir, `${name}.png`);

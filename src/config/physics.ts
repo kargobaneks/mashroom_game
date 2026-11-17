@@ -75,6 +75,8 @@ export const ITEMS = {
   metal: { width: 16, height: 16, heavy: false, hideable: true },
   /** Обломок от удара шара (арена Маркова): лёгкий, разбивается о цель. */
   scrap: { width: 16, height: 12, heavy: false, hideable: false },
+  /** Шар с потолка арены уровня 9 — единственное оружие против робота (как в оригинале). */
+  orb: { width: 14, height: 14, heavy: false, hideable: false },
   gravity: 0.25,
   maxFallSpeed: 4,
 } as const;

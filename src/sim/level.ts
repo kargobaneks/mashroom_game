@@ -37,7 +37,8 @@ export interface SpawnPoint extends Point {
     | 'cart'
     | 'crusher'
     | 'fold'
-    | 'magnet';
+    | 'magnet'
+    | 'lever';
   readonly kind: string;
   /** Для ящика: что под ним спрятано (появляется, когда ящик поднимают). */
   readonly contains?: string;
@@ -140,6 +141,7 @@ const SPAWN_TYPES: readonly SpawnPoint['type'][] = [
   'crusher',
   'fold',
   'magnet',
+  'lever',
 ];
 
 /** Разобрать карту Tiled: слои solid / oneway / hazard, objects и camera. */

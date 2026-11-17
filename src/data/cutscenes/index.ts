@@ -30,9 +30,27 @@ export const CUTSCENE_IMAGES: Readonly<Record<string, string>> = {
   l3_end_3: l3End3,
 };
 
-/** Кат-сцены с раскадровкой. Остальные пока — одно окно с текстом `cutscene.<id>`. */
+/** Кадры только с текстом рассказчика: `cutscene.<id>.1` … `cutscene.<id>.n`. */
+const narration = (id: string, n: number): CutsceneFrame[] =>
+  Array.from({ length: n }, (_, i) => ({
+    bg: null,
+    speaker: null,
+    textKey: `cutscene.${id}.${i + 1}`,
+  }));
+
+/**
+ * Кат-сцены. l3_end — с иллюстрациями; остальные пока — окна текста рассказчика (иллюстрации —
+ * этап арта). ending и post — финал и сцена после титров (сцена Ending).
+ */
 export const CUTSCENES: Readonly<Record<string, readonly CutsceneFrame[]>> = {
+  intro: narration('intro', 3),
+  l1_end: narration('l1_end', 2),
+  l2_end: narration('l2_end', 2),
   l3_end: l3End.frames as CutsceneFrame[],
+  l4_end: narration('l4_end', 2),
+  l5_end: narration('l5_end', 2),
+  ending: narration('ending', 4),
+  post: narration('post', 2),
 };
 
 export const cutsceneTextureKey = (bg: string): string => `cut-${bg}`;

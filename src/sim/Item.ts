@@ -5,7 +5,7 @@ import type { PickupKind } from './Pickup';
 import type { Player } from './Player';
 import type { World } from './World';
 
-export type ItemKind = 'box' | 'case' | 'letter' | 'gear' | 'card' | 'metal' | 'scrap';
+export type ItemKind = 'box' | 'case' | 'letter' | 'gear' | 'card' | 'metal' | 'scrap' | 'orb';
 /** Какая буква (для рисунка): ять, і десятеричное, фита. */
 export type LetterGlyph = 'yat' | 'i' | 'fita';
 export type ThrowDir = 'forward' | 'up' | 'ground';
@@ -47,6 +47,8 @@ export class Item implements Body {
   lock = 0;
   /** Металлический блок прилип к магниту: висит под ним твёрдым блоком. */
   stuck = false;
+  /** Сколько кадров ещё пролежит (шар арены уровня 9); null — вечно. Тикает, только пока лежит. */
+  ttl: number | null = null;
 
   constructor(
     readonly kind: ItemKind,
@@ -129,6 +131,10 @@ export class Item implements Body {
     switch (this.state) {
       case 'resting':
       case 'falling': {
+        if (this.ttl !== null && this.state === 'resting' && --this.ttl <= 0) {
+          this.state = 'gone';
+          return;
+        }
         this.vy = Math.min(this.vy + ITEMS.gravity, ITEMS.maxFallSpeed);
         moveBody(this, world.grid, {
           solids: world.solidsFor(this),

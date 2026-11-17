@@ -1,4 +1,4 @@
-import { CLOCK_TOWER, FREEZER, FUTURE, MECHANISMS, MINE } from '../config/mechanisms';
+import { CLOCK_TOWER, FREEZER, FUTURE, LAIR, MECHANISMS, MINE } from '../config/mechanisms';
 import type { Rect } from './geom';
 import { overlaps } from './geom';
 import type { LevelData, Zone } from './level';
@@ -525,8 +525,29 @@ export class Magnet implements Rect {
   }
 }
 
+/**
+ * Рычаг конвейера (уровень 9, по оригиналу): низкий пульт у начала ленты, твёрдый. Ящик,
+ * брошенный низко (по полу), переключает направление всех лент части.
+ */
+export class Lever implements Rect {
+  readonly x: number;
+  readonly y: number;
+  readonly w = LAIR.lever.width;
+  readonly h = LAIR.lever.height;
+
+  constructor(cx: number, bottom: number) {
+    this.x = cx - this.w / 2;
+    this.y = bottom - this.h;
+  }
+}
+
 /** Все механизмы части уровня. */
 export interface Mechanisms {
+  /** Ленты конвейера (уровень 9): верх ленты — y зоны. */
+  conveyors: Zone[];
+  levers: Lever[];
+  /** Куда везут все ленты части: -1 — влево (сначала, как в оригинале), 1 — вправо. */
+  belt: { dir: -1 | 1 };
   lifts: Lift[];
   melts: Melt[];
   chains: Chain[];
@@ -551,6 +572,9 @@ export function buildMechanisms(level: LevelData): Mechanisms {
     if (flood) floaters.push(new Floater(sp.x, flood));
   }
   return {
+    conveyors: level.zones.filter((z) => z.kind === 'conveyor'),
+    levers: level.spawns.filter((s) => s.type === 'lever').map((s) => new Lever(s.x, s.y)),
+    belt: { dir: -1 },
     lifts: level.spawns.filter((s) => s.type === 'lift').map((s) => new Lift(s.x, s.y)),
     melts: level.spawns
       .filter((s) => s.type === 'melt' || s.type === 'fold')

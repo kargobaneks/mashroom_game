@@ -1,4 +1,6 @@
 import type Phaser from 'phaser';
+import { spriteFrameName } from '../art/sprites';
+import { SPRITES_TEXTURE } from './spriteAtlas';
 import { DISPLAY } from '../config/display';
 import type { Player } from '../sim/Player';
 import type { World } from '../sim/World';
@@ -30,6 +32,9 @@ export class Hud {
     p: Player;
     initial: Phaser.GameObjects.BitmapText;
     hearts: Phaser.GameObjects.BitmapText;
+    /** Таймкоды: иконка и счётчик до 100 (100 — +1 сердце). */
+    tcIcon: Phaser.GameObjects.Image;
+    tc: Phaser.GameObjects.BitmapText;
   }[];
   private readonly bossName: Phaser.GameObjects.BitmapText;
   private readonly bossBarBg: Phaser.GameObjects.Rectangle;
@@ -60,11 +65,15 @@ export class Hud {
       const x = right ? DISPLAY.width - MARGIN : MARGIN;
       const initial = fix(uiText(scene, x, y, t(`hero.${p.hero}.initial`)));
       const hearts = fix(uiText(scene, x, y + 11, '', { color: PALETTE.red }));
+      const tcIcon = fix(
+        scene.add.image(0, y, SPRITES_TEXTURE, spriteFrameName('timecode', 'a')).setOrigin(0),
+      );
+      const tc = fix(uiText(scene, 0, y, '', { color: PALETTE.peach }));
       if (right) {
         initial.setOrigin(1, 0);
         hearts.setOrigin(1, 0);
       }
-      return { p, initial, hearts };
+      return { p, initial, hearts, tcIcon, tc };
     });
     this.bossName = fix(uiText(scene, DISPLAY.width / 2, 4, '', { align: 'center' })).setVisible(
       false,
@@ -115,9 +124,24 @@ export class Hud {
       // Последние 30 секунд — красным.
       this.timer.setTint(left <= TIMER_WARN_FRAMES ? PALETTE.red : PALETTE.white);
     }
-    for (const { p, initial, hearts } of this.players) {
+    for (const { p, initial, hearts, tcIcon, tc } of this.players) {
       const v = p.vitals;
+      // Буква героя и жизни (звезда — +1 жизнь), рядом — таймкоды до сотни.
+      initial.setText(`${t(`hero.${p.hero}.initial`)} ★${v.lives}`);
       initial.setTint(p.out ? PALETTE.gray : PALETTE.white);
+      tc.setText(String(p.timecodes).padStart(2, '0'));
+      const right = p.id === 2;
+      const gap = 6;
+      if (right) {
+        const x0 = initial.x - initial.width - gap - tc.width;
+        tc.setPosition(x0, initial.y);
+        tcIcon.setPosition(x0 - 10, initial.y);
+      } else {
+        tcIcon.setPosition(initial.x + initial.width + gap, initial.y);
+        tc.setPosition(tcIcon.x + 10, initial.y);
+      }
+      tcIcon.setVisible(!p.out);
+      tc.setVisible(!p.out);
       hearts.setText(
         p.out
           ? ''
@@ -134,7 +158,11 @@ export class Hud {
       this.bossBar.width = Math.round((BOSS_BAR.width * Math.max(0, boss.hp)) / boss.maxHp);
     }
     const w = this.world;
-    const panicOn = on && boss.name === 'uralov' && !boss.defeated;
+    // Уралов — всегда; Машина Конца Истории — пока паника не на нуле (заголовки фазы 1).
+    const panicOn =
+      on &&
+      !boss.defeated &&
+      (boss.name === 'uralov' || (boss.name === 'machine' && (w.panic > 0 || w.controlsInverted)));
     const blinkOff = w.controlsInverted && Math.floor(w.frame / PANIC_BAR.blinkFrames) % 2 === 1;
     this.panicLabel.setVisible(panicOn);
     this.panicBg.setVisible(panicOn);

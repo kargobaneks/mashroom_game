@@ -40,6 +40,11 @@ export class Menu {
     return this;
   }
 
+  /** Какой пункт сейчас выделен. */
+  get selected(): number {
+    return this.index;
+  }
+
   /** Сменить подписи (число пунктов то же). */
   setLabels(items: readonly MenuItem[]): void {
     this.items = items;

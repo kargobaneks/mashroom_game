@@ -7,7 +7,8 @@ import { Hud } from '../render/Hud';
 import { LevelView } from '../render/LevelView';
 import { parseTiledLevel } from '../sim/level';
 import { World, type PlayerCarry, type PlayerSetup, type WorldEvent } from '../sim/World';
-import { playMusic, playSfx, stopMusic } from '../systems/Audio';
+import { applyMusicVolume, playMusic, playSfx, stopMusic } from '../systems/Audio';
+import { nudgeVolume, volumeBar } from '../systems/Volume';
 import { partnerOf, runAtLevel } from '../systems/Flow';
 import { ACTIONS, type PlayerId } from '../systems/InputState';
 import { t } from '../systems/Text';
@@ -193,7 +194,8 @@ export class Level extends BaseScene<LevelSceneData> {
                 t(`boss.${boss?.name}.name`),
                 t(`boss.${boss?.name}.outro`),
               ),
-              then: () => this.go({ type: 'done', carry: world.carryOut() }),
+              // Уровень 9: после арены — побег (следующая часть); иначе уровень пройден.
+              then: () => this.nextPart(world),
             };
           },
         };
@@ -292,10 +294,12 @@ export class Level extends BaseScene<LevelSceneData> {
     this.mode = { kind: 'paused', menu, objects: [...objects, ...menu.objects] };
   }
 
+  /** Пункты паузы: продолжить, ползунки музыки и звуков (← →), выйти. */
   private pauseItems(): { label: string }[] {
     return [
       { label: t('pause.resume') },
-      { label: this.sound.mute ? t('pause.soundOff') : t('pause.soundOn') },
+      { label: `${t('pause.music')} ${volumeBar('music')}` },
+      { label: `${t('pause.sfx')} ${volumeBar('sfx')}` },
       { label: t('pause.quit') },
     ];
   }
@@ -305,12 +309,18 @@ export class Level extends BaseScene<LevelSceneData> {
       this.closeOverlay();
       return;
     }
+    // Ползунки: ← → на выделенном пункте.
+    const slider = menu.selected === 1 ? 'music' : menu.selected === 2 ? 'sfx' : null;
+    const delta = this.controls.anyPressed('right') ? 1 : this.controls.anyPressed('left') ? -1 : 0;
+    if (slider && delta !== 0) {
+      nudgeVolume(slider, delta);
+      if (slider === 'music') applyMusicVolume(this);
+      else playSfx(this, 'menu');
+      menu.setLabels(this.pauseItems());
+    }
     const picked = menu.update(this.controls);
     if (picked === 0) this.closeOverlay();
-    else if (picked === 1) {
-      this.sound.mute = !this.sound.mute;
-      menu.setLabels(this.pauseItems());
-    } else if (picked === 2) this.go({ type: 'quit' });
+    else if (picked === 3) this.go({ type: 'quit' });
   }
 
   private closeOverlay(): void {

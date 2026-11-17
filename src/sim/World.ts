@@ -1,6 +1,7 @@
 import { AGRANOVICH, BALANCE, BOSS_RULES, DUO, MARKOV, SHCHELIN, URALOV } from '../config/balance';
+import { Machine, type MachineWorld } from './bosses/Machine';
 import { ENEMIES } from '../config/enemies';
-import { ARCHIVE_HALL, FUTURE, MINE } from '../config/mechanisms';
+import { ARCHIVE_HALL, FUTURE, LAIR, MINE } from '../config/mechanisms';
 import type { HeroId } from '../systems/Flow';
 import type { PlayerId } from '../systems/InputState';
 import { Agranovich } from './bosses/Agranovich';
@@ -14,7 +15,7 @@ import { Uralov } from './bosses/Uralov';
 import { Camera } from './Camera';
 import { createEnemy, isEnemyKind, type Enemy } from './enemies';
 import { contains, overlaps, type Point, type Rect } from './geom';
-import { addLife, heal, loseLife, type PlayerCarry } from './health';
+import { addLife, addTimecode, heal, loseLife, type PlayerCarry } from './health';
 
 export type { PlayerCarry } from './health';
 import { Item, type ItemKind, type ThrowDir } from './Item';
@@ -66,19 +67,22 @@ const ITEM_KINDS: readonly string[] = [
   'card',
   'metal',
   'scrap',
+  'orb',
 ] satisfies ItemKind[];
 const isItemKind = (k: string): k is ItemKind => ITEM_KINDS.includes(k);
 
 /** Расстояние между игроками на старте, px. */
 const COOP_START_OFFSET = 16;
 
-export type Boss = Agranovich | Uralov | Bordachev | Mikitko | Shchelin | Duo | Markov;
+export type Boss = Agranovich | Uralov | Bordachev | Mikitko | Shchelin | Duo | Markov | Machine;
 
 /**
  * Мир уровня: вся игровая логика без Phaser. Шаг — 1/60 с. Сцена передаёт ввод,
  * рисует состояние и забирает события (звуки, вход в арену, победа, конец игры).
  */
-export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinWorld, MarkovWorld {
+export class World
+  implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinWorld, MarkovWorld, MachineWorld
+{
   readonly grid: TileGrid;
   readonly camera: Camera;
   readonly rng: Rng;
@@ -251,6 +255,7 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
     if (seg.boss === 'shchelin') return new Shchelin(seg);
     if (seg.boss === 'duo') return new Duo(seg);
     if (seg.boss === 'markov') return new Markov(seg);
+    if (seg.boss === 'machine') return new Machine(seg);
     return null;
   }
 
@@ -319,7 +324,7 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
 
   /** Свет погашен: арена Микитко или мигающий свет портретного зала. */
   get dark(): boolean {
-    if (this.boss instanceof Mikitko) return this.boss.dark;
+    if (this.boss instanceof Mikitko || this.boss instanceof Machine) return this.boss.dark;
     if (!this.level.flicker) return false;
     const H = ARCHIVE_HALL;
     const t = this.frame % (H.litFrames + H.flickerFrames + H.darkFrames);
@@ -330,7 +335,7 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
 
   /** Насколько темно: на арене — чёрная тьма, в зале — синие силуэты. */
   get darkness(): { color: number; alpha: number } {
-    return this.boss instanceof Mikitko
+    return this.boss instanceof Mikitko || this.boss instanceof Machine
       ? { color: 0x000000, alpha: 1 }
       : { color: ARCHIVE_HALL.darkColor, alpha: ARCHIVE_HALL.darkAlpha };
   }
@@ -402,6 +407,25 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
     }
   }
 
+  // ——— арена Машины Конца Истории ———
+
+  /** Шар-оружие падает с потолка: лежит 260 кадров, мигает 38 и пропадает (как в оригинале). */
+  dropOrb(x: number, y: number): void {
+    const orb = new Item('orb', { x, y });
+    orb.ttl = LAIR.orb.lieFrames + LAIR.orb.blinkFrames;
+    this.items.push(orb);
+  }
+
+  /** Пламя и кулак-ракета ранят касанием. */
+  private machineContacts(b: Machine): void {
+    if (b.defeated) return;
+    for (const p of this.players) {
+      if (!p.active || p.thrownFlight) continue;
+      const hit = b.hazards.find((r) => overlaps(p, r));
+      if (hit) this.damagePlayer(p, hit.x + hit.w / 2);
+    }
+  }
+
   // ——— помощник (Петровский) ———
 
   private readonly helped = new Set<Zone>();
@@ -409,14 +433,19 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
   /** Встал рядом с помощником — один раз за часть: реплика и полные сердца у всех (ТЗ). */
   private checkHelpers(): void {
     for (const z of this.level.zones) {
-      if (z.kind !== 'helper' || this.helped.has(z)) continue;
+      if ((z.kind !== 'helper' && z.kind !== 'simes') || this.helped.has(z)) continue;
       const near = this.players.some(
         (p) => p.active && contains(z, { x: p.x + p.w / 2, y: p.y + p.h - 1 }),
       );
       if (!near) continue;
       this.helped.add(z);
-      for (const p of this.players) if (!p.out) p.vitals.hearts = p.vitals.maxHearts;
       this.frozen = true;
+      if (z.kind === 'simes') {
+        // Саймс (уровень 9): только реплика перед аппаратной (ТЗ).
+        this.emit({ type: 'helper', who: 'simes' });
+        continue;
+      }
+      for (const p of this.players) if (!p.out) p.vitals.hearts = p.vitals.maxHearts;
       this.emit({ type: 'helper', who: 'petrovsky' });
       this.emit({ type: 'sfx', name: 'coffee' });
     }
@@ -587,7 +616,8 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
       if (
         this.boss instanceof Shchelin ||
         this.boss instanceof Duo ||
-        this.boss instanceof Markov
+        this.boss instanceof Markov ||
+        this.boss instanceof Machine
       ) {
         this.boss.restore();
         this.items = this.items.filter(
@@ -648,6 +678,8 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
     const out: Rect[] = this.items.filter((i) => i.isSolid && i !== body && !overlaps(i, body));
     // Давящие блоки (уровень 8) — твёрдые: в них упираются, на них встают.
     for (const c of this.mech.crushers) if (!overlaps(c, body)) out.push(c);
+    // Рычаги конвейера (уровень 9) — низкие твёрдые пульты.
+    for (const l of this.mech.levers) if (!overlaps(l, body)) out.push(l);
     return out;
   }
 
@@ -678,11 +710,17 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
     this.projectiles.push(p);
   }
 
+  /** Враг порождает врага (птица из точки вылета, шар пушки, бот из «яйца»). */
+  addEnemy(e: Enemy): void {
+    this.enemies.push(e);
+  }
+
   // ——— столкновения ———
 
   private resolveThrownItems(): void {
     for (const it of this.items) {
       if (it.state !== 'thrown') continue;
+      if (this.hitLever(it)) continue;
       // Неуязвимых (сосулька) брошенный предмет не берёт — пролетает мимо.
       const enemy = this.enemies.find((e) => e.alive && !e.invulnerable && overlaps(it, e));
       if (enemy) {
@@ -788,6 +826,7 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
         !(boss instanceof Shchelin) &&
         !(boss instanceof Duo) &&
         !(boss instanceof Markov) &&
+        !(boss instanceof Machine) &&
         it.vy > 0 &&
         overlaps(it, boss) &&
         boss.hit(this)
@@ -812,6 +851,7 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
       return;
     }
     if (boss instanceof Markov) this.craneContacts(boss);
+    if (boss instanceof Machine) this.machineContacts(boss);
     if (boss.harmful) {
       for (const p of this.players)
         if (p.active && !p.thrownFlight && overlaps(p, boss))
@@ -832,7 +872,8 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
       boss instanceof Mikitko ||
       boss instanceof Shchelin ||
       boss instanceof Duo ||
-      boss instanceof Markov
+      boss instanceof Markov ||
+      boss instanceof Machine
     ) {
       this.ammoTimer = 0;
     } else if (++this.ammoTimer >= BOSS_RULES.ammoDropFrames) {
@@ -858,7 +899,11 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
       pk.taken = true;
       if (pk.kind === 'coffee') heal(p.vitals);
       else if (pk.kind === 'star') addLife(p.vitals);
-      else p.timecodes++;
+      else {
+        const r = addTimecode(p.vitals, p.timecodes);
+        p.timecodes = r.count;
+        if (r.heart) this.emit({ type: 'sfx', name: 'life' });
+      }
       this.emit({ type: 'pickup', kind: pk.kind, player: p.id });
     }
   }
@@ -883,6 +928,48 @@ export class World implements BossWorld, BordachevWorld, MikitkoWorld, ShchelinW
     }
     for (const f of this.mech.floods) f.rise();
     for (const fl of this.mech.floaters) if (fl.shown) fl.follow(riders);
+    this.pushBelts();
+  }
+
+  // ——— конвейеры (уровень 9) ———
+
+  /** Лента под ногами героя: верх зоны conveyor, центр героя над ней. */
+  beltUnder(b: Rect & { onGround: boolean }): Zone | null {
+    if (!b.onGround) return null;
+    const cx = b.x + b.w / 2;
+    const feet = b.y + b.h;
+    return (
+      this.mech.conveyors.find((z) => Math.abs(feet - z.y) < 0.5 && cx >= z.x && cx < z.x + z.w) ??
+      null
+    );
+  }
+
+  /** Лента везёт стоящих на ней героев; в стену или ящик не вдавливает. */
+  private pushBelts(): void {
+    if (this.mech.conveyors.length === 0) return;
+    const dx = this.mech.belt.dir * LAIR.conveyor.speed;
+    for (const p of this.players) {
+      if (!p.active || p.state === 'held' || !this.beltUnder(p)) continue;
+      const x0 = p.x;
+      p.x += dx;
+      const blocked =
+        this.grid.rectHitsSolid(p) ||
+        this.solidsFor(p).some((r) => overlaps(r, p)) ||
+        p.x < this.camera.x ||
+        p.x + p.w > this.camera.x + this.camera.w;
+      if (blocked) p.x = x0;
+    }
+  }
+
+  /** Низко брошенный ящик попал в рычаг: все ленты части едут в другую сторону. */
+  private hitLever(it: Item): boolean {
+    if (it.throwDir !== 'ground') return false;
+    const lever = this.mech.levers.find((l) => overlaps(l, it));
+    if (!lever) return false;
+    this.mech.belt.dir = this.mech.belt.dir < 0 ? 1 : -1;
+    it.impact();
+    this.emit({ type: 'sfx', name: 'trigger' });
+    return true;
   }
 
   // ——— давящие блоки и магнит (уровень 8) ———

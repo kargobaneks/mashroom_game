@@ -23,6 +23,15 @@ import level8FoldsArt from '../../../assets/tilesets/level8_2.png';
 import level8BonusArt from '../../../assets/tilesets/level8_bonus.png';
 import level8MagnetArt from '../../../assets/tilesets/level8_3.png';
 import level8ArenaArt from '../../../assets/tilesets/level8_arena.png';
+import level9ConveyorsArt from '../../../assets/tilesets/level9_1.png';
+import level9ScaffoldArt from '../../../assets/tilesets/level9_2.png';
+import level9BonusArt from '../../../assets/tilesets/level9_bonus.png';
+import level9PressArt from '../../../assets/tilesets/level9_3.png';
+import level9CannonsArt from '../../../assets/tilesets/level9_4.png';
+import level9DangerArt from '../../../assets/tilesets/level9_5.png';
+import level9SimesArt from '../../../assets/tilesets/level9_simes.png';
+import level9ArenaArt from '../../../assets/tilesets/level9_arena.png';
+import level9EscapeArt from '../../../assets/tilesets/level9_escape.png';
 import type { LevelId } from '../../config/levels';
 import type { TiledMap } from '../../sim/level';
 import level1Hall from './level1_1.json';
@@ -50,6 +59,15 @@ import level8Folds from './level8_2.json';
 import level8Bonus from './level8_bonus.json';
 import level8Magnet from './level8_3.json';
 import level8Arena from './level8_arena.json';
+import level9Conveyors from './level9_1.json';
+import level9Scaffold from './level9_2.json';
+import level9Bonus from './level9_bonus.json';
+import level9Press from './level9_3.json';
+import level9Cannons from './level9_4.json';
+import level9Danger from './level9_5.json';
+import level9Simes from './level9_simes.json';
+import level9Arena from './level9_arena.json';
+import level9Escape from './level9_escape.json';
 
 /** Часть уровня: карта Tiled и тайлсет её арта. */
 export interface LevelPart {
@@ -108,6 +126,19 @@ export const LEVELS: Partial<Record<LevelId, readonly LevelPart[]>> = {
     { map: level8Bonus as TiledMap, artTileset: 'level8_bonus', artUrl: level8BonusArt },
     { map: level8Magnet as TiledMap, artTileset: 'level8_3', artUrl: level8MagnetArt },
     { map: level8Arena as TiledMap, artTileset: 'level8_arena', artUrl: level8ArenaArt },
+  ],
+  // Логово (как в оригинале): конвейеры → леса с птицами → бонус с Петровским → лазерный пресс
+  // → коридор с пушками → коридор DANGER → приёмная с Саймсом → аппаратная → побег (ТЗ).
+  9: [
+    { map: level9Conveyors as TiledMap, artTileset: 'level9_1', artUrl: level9ConveyorsArt },
+    { map: level9Scaffold as TiledMap, artTileset: 'level9_2', artUrl: level9ScaffoldArt },
+    { map: level9Bonus as TiledMap, artTileset: 'level9_bonus', artUrl: level9BonusArt },
+    { map: level9Press as TiledMap, artTileset: 'level9_3', artUrl: level9PressArt },
+    { map: level9Cannons as TiledMap, artTileset: 'level9_4', artUrl: level9CannonsArt },
+    { map: level9Danger as TiledMap, artTileset: 'level9_5', artUrl: level9DangerArt },
+    { map: level9Simes as TiledMap, artTileset: 'level9_simes', artUrl: level9SimesArt },
+    { map: level9Arena as TiledMap, artTileset: 'level9_arena', artUrl: level9ArenaArt },
+    { map: level9Escape as TiledMap, artTileset: 'level9_escape', artUrl: level9EscapeArt },
   ],
 };
 

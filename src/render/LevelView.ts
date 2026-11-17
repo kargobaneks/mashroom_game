@@ -8,6 +8,10 @@ import { Mikitko } from '../sim/bosses/Mikitko';
 import { Shchelin } from '../sim/bosses/Shchelin';
 import { Duo } from '../sim/bosses/Duo';
 import { Markov } from '../sim/bosses/Markov';
+import { Machine } from '../sim/bosses/Machine';
+import { Laser } from '../sim/enemies/LairEnemies';
+import { LAIR } from '../config/mechanisms';
+import { MACHINE } from '../config/balance';
 import { DUO } from '../config/balance';
 import { Pendulum } from '../sim/enemies/MineHazards';
 import { MIKITKO } from '../config/balance';
@@ -104,6 +108,13 @@ const ENEMY_FRAMES: Record<EnemyKind, readonly [string, string]> = {
   diveMoth: ['fly1', 'fly2'],
   slingRat: ['idle', 'idle'],
   mechDog: ['roll1', 'roll2'],
+  nest: ['idle', 'idle'],
+  eggNest: ['idle', 'idle'],
+  laser: ['idle', 'idle'],
+  cannon: ['idle', 'idle'],
+  cannonBall: ['idle', 'idle'],
+  ambushRat: ['walk1', 'walk2'],
+  rubble: ['hang', 'hang'],
 };
 
 function alt(frame: number, per: number, a: string, b: string): string {
@@ -189,12 +200,16 @@ export class LevelView {
     // Пламя свечей (зоны flame): горит и в темноте.
     this.flames = world.level.zones.filter((z) => z.kind === 'flame');
     this.helpers = world.level.zones.filter((z) => z.kind === 'helper');
+    this.simes = world.level.zones.filter((z) => z.kind === 'simes');
     this.cameos = world.level.zones.filter((z) => z.kind === 'cameo');
   }
 
   private readonly darkness: Phaser.GameObjects.Rectangle;
   private readonly flames: readonly Rect[];
   private readonly helpers: readonly Rect[];
+  /** Дмитрий Саймс перед аппаратной (уровень 9). */
+  private readonly simes: readonly Rect[];
+  private readonly simesShirt = new Map<Rect, object>();
   /** Камео (Стас Васильев за стойкой салуна, уровень 7): просто стоит. */
   private readonly cameos: readonly Rect[];
   /** Ключи слоёв призрака Микитко. */
@@ -261,20 +276,26 @@ export class LevelView {
     const lift = HERO_SPRITE.height - PLAYER_PHYSICS.hitboxStanding.height;
     for (const it of w.items) {
       const held = it.state === 'carried' || it.state === 'hiding';
+      // Шар арены уровня 9 перед тем, как пропасть, мигает.
+      const fading = it.ttl !== null && it.ttl < LAIR.orb.blinkFrames && !held;
       draw(it, {
         id: it.kind,
         frame: it.kind === 'letter' ? it.glyph : 'idle',
         rect: it,
         depth: held ? DEPTH.carried : DEPTH.item,
         offsetY: it.state === 'carried' ? -lift : 0,
+        visible: !fading || blink(it.ttl ?? 0),
       });
     }
 
-    for (const e of w.enemies) draw(e, this.enemyView(e, f));
+    // Лучи лазеров рисуются отдельно (длина у каждого своя).
+    for (const e of w.enemies) if (!(e instanceof Laser)) draw(e, this.enemyView(e, f));
+    this.syncLair(f, draw);
     this.syncRopes();
     this.syncPendulums();
     for (const p of w.players) this.syncHero(p);
-    if (w.boss instanceof Markov) this.syncMarkov(w.boss, f, draw);
+    if (w.boss instanceof Machine) this.syncMachine(w.boss, f, draw);
+    else if (w.boss instanceof Markov) this.syncMarkov(w.boss, f, draw);
     else if (w.boss instanceof Mikitko) this.syncMikitko(w.boss, f, draw);
     else if (w.boss instanceof Duo) this.syncDuo(w.boss, draw);
     else if (w.boss) draw(w.boss, this.bossView(w.boss, f));
@@ -284,7 +305,7 @@ export class LevelView {
     for (const pr of w.projectiles)
       draw(pr, {
         id: pr.kind,
-        frame: pr.kind === 'beam' ? alt(f, 3, 'a', 'b') : 'idle',
+        frame: pr.kind === 'beam' ? alt(f, 3, 'a', 'b') : pr.kind === 'headline' ? 'fly1' : 'idle',
         rect: pr,
         depth: DEPTH.projectile,
         ...(pr.kind === 'beam' ? { angle: Math.atan2(pr.vy, pr.vx) } : {}),
@@ -444,6 +465,110 @@ export class LevelView {
     });
   }
 
+  // ——— уровень 9 ———
+
+  private lairGfx: Phaser.GameObjects.Graphics | null = null;
+
+  /**
+   * Конвейеры: бегущие стрелки показывают, куда везёт лента (рычаг меняет все ленты части).
+   * Лазеры: сопло мигает перед включением, луч — белый с красной кромкой.
+   */
+  private syncLair(f: number, draw: (key: object, v: SpriteView) => void): void {
+    const w = this.world;
+    const lasers = w.enemies.filter((e): e is Laser => e instanceof Laser);
+    if (w.mech.conveyors.length === 0 && lasers.length === 0 && !this.lairGfx) return;
+    this.lairGfx ??= this.scene.add.graphics().setDepth(DEPTH.mechanism);
+    const g = this.lairGfx.clear();
+    const dir = w.mech.belt.dir;
+    const shift = (((f * LAIR.conveyor.speed) % 16) + 16) % 16;
+    for (const z of w.mech.conveyors) {
+      for (let x = z.x - 16; x < z.x + z.w + 16; x += 16) {
+        const ax = x + (dir > 0 ? shift : 16 - shift);
+        if (ax < z.x + 2 || ax > z.x + z.w - 8) continue;
+        const y = z.y + 5;
+        g.fillStyle(0x000000, 1);
+        // Шеврон «>» или «<» 5×6.
+        for (let k = 0; k < 3; k++) {
+          const dx = dir > 0 ? k : 2 - k;
+          g.fillRect(ax + dx, y + k, 2, 1);
+          g.fillRect(ax + dx, y + 5 - k, 2, 1);
+        }
+      }
+    }
+    for (const l of w.mech.levers)
+      draw(l, { id: 'lever', frame: dir > 0 ? 'right' : 'left', rect: l, depth: DEPTH.mechanism });
+    for (const l of lasers) {
+      const cx = l.x + l.w / 2;
+      if (l.warning && f % 6 < 3) {
+        g.fillStyle(0xfcfcfc, 1).fillRect(cx - 3, l.y, 6, 4);
+      }
+      if (!l.on) continue;
+      const flick = f % 4 < 2 ? 1 : 0;
+      g.fillStyle(0xd82800, 1).fillRect(l.x + flick, l.y, l.w - flick * 2, l.h);
+      g.fillStyle(0xfcfcfc, 1).fillRect(cx - 1, l.y, 2, l.h);
+      g.fillStyle(0xf8b800, 1).fillRect(cx - 5, l.y + l.h - 3, 10, 3);
+    }
+  }
+
+  private readonly machineParts = { trim: {}, hat: {}, jet: {}, fist: {} };
+  private danger: Phaser.GameObjects.BitmapText | null = null;
+
+  /**
+   * Машина Конца Истории: три слоя 96×96 по низу корпуса (сталь, рубашка и циферблат, цилиндр),
+   * пламя под ногами при взлёте, кулак-ракета, знак DANGER со стрелкой над точкой посадки.
+   */
+  private syncMachine(b: Machine, f: number, draw: (key: object, v: SpriteView) => void): void {
+    const S = MACHINE.sprite;
+    const frame = `p${b.phase + 1}`;
+    const rect = { x: b.cx - S.w / 2, y: b.bottom - S.h, w: S.w, h: S.h };
+    const visible = !b.defeated
+      ? b.state !== 'air' && (b.invuln === 0 || blink(b.invuln))
+      : b.timer < MACHINE.outroFrames - 30 && f % 4 < 3;
+    const flash = b.telegraphing && f % 8 < 4;
+    const layers = [
+      ['machineSteel', b],
+      ['machineTrim', this.machineParts.trim],
+      ['machineHat', this.machineParts.hat],
+    ] as const;
+    layers.forEach(([id, key], i) =>
+      draw(key, {
+        id,
+        frame,
+        rect,
+        depth: DEPTH.boss + i * 0.01,
+        visible,
+        flash: flash && i === 0,
+      }),
+    );
+    const fl = b.flame;
+    draw(this.machineParts.jet, {
+      id: 'jet',
+      frame: alt(f, 3, 'a', 'b'),
+      rect: fl ?? rect,
+      depth: DEPTH.boss - 0.1,
+      visible: fl !== null,
+    });
+    const fi = b.fistRect;
+    draw(this.machineParts.fist, {
+      id: 'fist',
+      frame: 'idle',
+      rect: fi ?? rect,
+      depth: DEPTH.boss + 0.05,
+      visible: fi !== null,
+    });
+    if (!this.danger) {
+      this.danger = this.scene.add
+        .bitmapText(0, 0, FONT_KEY, '↑\nDANGER', LABEL_SIZE)
+        .setOrigin(0.5, 0)
+        .setCenterAlign()
+        .setTint(0xf8b800)
+        .setDepth(DEPTH.overlay - 2);
+    }
+    this.danger
+      .setVisible(b.danger && f % 16 < 12)
+      .setPosition(Math.round(b.landX), Math.round(b.arena.y + 40));
+  }
+
   /** Канаты такелажников: от блока на мачте до люльки. */
   private pendulumChains: Phaser.GameObjects.Graphics | null = null;
 
@@ -574,6 +699,13 @@ export class LevelView {
         depth: DEPTH.enemy,
         flip: true,
       });
+    for (const z of this.simes) {
+      const rect = { x: z.x + z.w / 2 - 12, y: z.y + z.h - 40, w: 24, h: 40 };
+      draw(z, { id: 'simes', frame: 'idle', rect, depth: DEPTH.enemy, flip: true });
+      let key = this.simesShirt.get(z);
+      if (!key) this.simesShirt.set(z, (key = {}));
+      draw(key, { id: 'simesShirt', frame: 'idle', rect, depth: DEPTH.enemy + 0.01, flip: true });
+    }
     for (const z of this.cameos)
       draw(z, { id: 'vasiliev', frame: 'bar', rect: z, depth: DEPTH.mechanism, flip: true });
     for (const z of this.flames)
@@ -665,7 +797,7 @@ export class LevelView {
           : target !== null && target.x < b.x + b.w / 2;
     return {
       // Соболев и Лука рисуются отдельно (syncDuo).
-      id: b.name === 'duo' ? 'sobolev' : b.name,
+      id: b.name === 'duo' ? 'sobolev' : b.name === 'machine' ? 'machineSteel' : b.name,
       frame,
       rect: b,
       depth: DEPTH.boss,

@@ -45,6 +45,18 @@ export function raiseMaxHearts(v: Vitals): void {
   v.maxHearts = Math.min(BALANCE.maxHeartsCap, v.maxHearts + 1);
 }
 
+/**
+ * Таймкод подобран: набралось 100 — счётчик обнуляется, у героя +1 сердце к максимуму (не больше
+ * пяти) и само сердце; на потолке — просто +1 сердце. Возвращает новый счётчик и было ли сердце.
+ */
+export function addTimecode(v: Vitals, count: number): { count: number; heart: boolean } {
+  const next = count + 1;
+  if (next < BALANCE.timecodesForHeart) return { count: next, heart: false };
+  raiseMaxHearts(v);
+  heal(v);
+  return { count: next - BALANCE.timecodesForHeart, heart: true };
+}
+
 /** Потеря жизни: 'respawn' с полными сердцами или 'out', если жизни кончились. */
 export function loseLife(v: Vitals): 'respawn' | 'out' {
   v.lives = Math.max(0, v.lives - 1);

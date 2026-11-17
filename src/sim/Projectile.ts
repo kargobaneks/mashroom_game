@@ -15,7 +15,8 @@ export type ProjectileKind =
   | 'mothShot'
   | 'card'
   | 'pebble'
-  | 'scrap';
+  | 'scrap'
+  | 'spark';
 
 /** Снаряд врага или босса. Ранит игрока при касании, гаснет о стену или за экраном. */
 export class Projectile implements Rect {
