@@ -13,15 +13,7 @@ const files = import.meta.glob('/assets/dev-overrides/{sfx,music}/**/*.{wav,ogg,
   eager: true,
 }) as Record<string, string>;
 
-/** Треки, которые игра включает (ТЗ: титул, трек на уровень, босс, парк, побег, финал). */
-export const MUSIC_KEYS: readonly string[] = [
-  'title',
-  ...Array.from({ length: 9 }, (_, i) => `level${i + 1}`),
-  'park',
-  'boss',
-  'escape',
-  'ending',
-];
+import { MUSIC_KEYS } from '../systems/musicFiles';
 
 export interface Override {
   readonly kind: 'sfx' | 'music';

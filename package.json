@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "levels": "node scripts/build-levels.mjs"
+    "levels": "node scripts/build-levels.mjs",
+    "music": "node scripts/music/build.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"

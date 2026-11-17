@@ -35,7 +35,7 @@ export interface Run {
 export type Route =
   | { readonly scene: 'Title' }
   | { readonly scene: 'Cutscene'; readonly id: string }
-  | { readonly scene: 'Level'; readonly level: LevelId }
+  | { readonly scene: 'Level'; readonly level: LevelId; readonly part?: number }
   | { readonly scene: 'WireChoice' }
   | { readonly scene: 'Bonus'; readonly game: BonusGame }
   | { readonly scene: 'ParkHub' }

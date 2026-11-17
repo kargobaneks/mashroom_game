@@ -58,6 +58,12 @@ export function applyMusicVolume(scene: Phaser.Scene): void {
     if ('setVolume' in s) (s as Phaser.Sound.WebAudioSound).setVolume(volume('music'));
 }
 
+/** Трек арены: свой у босса (`boss-<имя>`), если загружен, иначе общий `boss`. */
+export function playBossMusic(scene: Phaser.Scene, boss: string): void {
+  const own = `boss-${boss}`;
+  playMusic(scene, scene.cache.audio.exists(musicKey(own)) ? own : 'boss');
+}
+
 export function stopMusic(scene: Phaser.Scene): void {
   const registry = scene.game.registry;
   const cur = registry.get(CURRENT_MUSIC) as string | undefined;

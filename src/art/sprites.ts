@@ -3904,13 +3904,13 @@ function machineFrame(phase: 1 | 2 | 3): string[] {
     const dx = x + 0.5 - 46;
     const dy = y + 0.5 - 22;
     if (r > 7 && (Math.abs(dx) < 1 || Math.abs(dy) < 1)) return 'D';
-    // Стрелки замерли: часовая — на 11, минутная — на 12 (без пяти полночь).
+    // Часовая стрелка замерла на 11; минутную рисует LevelView (на приветствии она тикает).
     const onHand = (ang: number, len: number) => {
       const t = dx * Math.cos(ang) + dy * Math.sin(ang);
       const n = Math.abs(-dx * Math.sin(ang) + dy * Math.cos(ang));
       return t >= 0 && t <= len && n < 0.9;
     };
-    if (onHand(-Math.PI / 2, 7.5) || onHand(-Math.PI / 2 - Math.PI / 6, 5.5)) return 'D';
+    if (onHand(-Math.PI / 2 - Math.PI / 6, 5.5)) return 'D';
     if (r < 1.3) return 'R';
     return 'W';
   });

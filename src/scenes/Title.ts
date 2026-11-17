@@ -6,6 +6,8 @@ import { uiText } from '../ui/text';
 import { BaseScene } from './BaseScene';
 
 const BLINK_FRAMES = 30;
+/** Картинка титула (scripts/title/build_title.py): ведущие, раскол неба, логотип. */
+export const TITLE_ART_KEY = 'title-art';
 
 export class Title extends BaseScene {
   private prompt!: Phaser.GameObjects.BitmapText;
@@ -19,10 +21,12 @@ export class Title extends BaseScene {
     this.frame = 0;
     playMusic(this, 'title');
     const cx = DISPLAY.width / 2;
-    uiText(this, cx, 64, t('game.title'), { align: 'center' }).setScale(2);
-    uiText(this, cx, 92, t('game.subtitle'), { align: 'center' });
-    uiText(this, cx, 116, t('game.tagline'), { align: 'center', color: PALETTE.sky });
-    this.prompt = uiText(this, cx, 176, t('title.pressStart'), { align: 'center' });
+    this.cameras.main.setBackgroundColor(PALETTE.black);
+    // Как в оригинале: ведущие по бокам, логотип посередине (картинка с логотипом «КОМНАТА»).
+    this.add.image(0, 4, TITLE_ART_KEY).setOrigin(0);
+    uiText(this, cx, 162, t('game.subtitle'), { align: 'center', color: PALETTE.peach });
+    uiText(this, cx, 178, t('game.tagline'), { align: 'center', color: PALETTE.sky });
+    this.prompt = uiText(this, cx, 214, t('title.pressStart'), { align: 'center' });
   }
 
   protected tick(): void {

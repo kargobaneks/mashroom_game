@@ -7,7 +7,7 @@ import { Hud } from '../render/Hud';
 import { LevelView } from '../render/LevelView';
 import { parseTiledLevel } from '../sim/level';
 import { World, type PlayerCarry, type PlayerSetup, type WorldEvent } from '../sim/World';
-import { applyMusicVolume, playMusic, playSfx, stopMusic } from '../systems/Audio';
+import { applyMusicVolume, playBossMusic, playMusic, playSfx, stopMusic } from '../systems/Audio';
 import { nudgeVolume, volumeBar } from '../systems/Volume';
 import { partnerOf, runAtLevel } from '../systems/Flow';
 import { ACTIONS, type PlayerId } from '../systems/InputState';
@@ -87,7 +87,7 @@ export class Level extends BaseScene<LevelSceneData> {
     this.world = new World(parseTiledLevel(map), setup, level * 10 + part, carryIn);
     if (warpToBoss) this.world.warpToBoss();
     if (part > 0) this.cameras.main.fadeIn(PART_FADE_MS, 0, 0, 0);
-    playMusic(this, `level${level}`);
+    playMusic(this, asset.music ?? `level${level}`);
     this.cameras.main.setBackgroundColor(PALETTE.black);
     this.view = new LevelView(this, this.world, map, asset.artTileset, {
       tileset: asset.artTileset,
@@ -102,6 +102,8 @@ export class Level extends BaseScene<LevelSceneData> {
   protected tick(): void {
     switch (this.mode.kind) {
       case 'dialogue':
+        // Приветствие финального босса: лампы мигают, стрелка тикает.
+        if (this.view?.idleTick()) playSfx(this, 'tick');
         if (this.mode.box.update(this.controls)) {
           const then = this.mode.then;
           this.mode = { kind: 'play' };
@@ -161,7 +163,7 @@ export class Level extends BaseScene<LevelSceneData> {
     if (!world) return;
     switch (ev.type) {
       case 'bossIntro':
-        playMusic(this, 'boss');
+        playBossMusic(this, ev.boss);
         this.mode = {
           kind: 'dialogue',
           box: new DialogueBox(this, t(`boss.${ev.boss}.name`), t(`boss.${ev.boss}.intro`)),

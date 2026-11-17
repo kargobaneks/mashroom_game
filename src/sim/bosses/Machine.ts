@@ -10,13 +10,14 @@ import { Projectile } from '../Projectile';
 import type { BossBase, BossWorld } from './Boss';
 
 /**
- * intro — ждёт конца реплики; lights — свет ещё горит, робот стоит; hop — подскок на тяге
+ * prelude — вступление: свет медленно гаснет, мигают красные лампы, робот проявляется;
+ * intro — ждёт конца реплики (стрелка тикает); hop — подскок на тяге
  * (только в начале боя); stand — стоит после подскока; ground — стоит на точке посадки
  * (на дальней — атакует, на других — «пыхтит»); takeoff — взлёт на тяге; air — за верхним
  * краем; land — падает в точку под знаком; defeated — взрывы.
  */
 export type MachineState =
-  'intro' | 'lights' | 'hop' | 'stand' | 'ground' | 'takeoff' | 'air' | 'land' | 'defeated';
+  'prelude' | 'intro' | 'hop' | 'stand' | 'ground' | 'takeoff' | 'air' | 'land' | 'defeated';
 
 /** Что боссу нужно от мира сверх общего: шар-оружие и герой (ноги — куда целиться). */
 export interface MachineWorld extends BossWorld {
@@ -44,7 +45,7 @@ export class Machine implements BossBase {
   readonly h: number = C.body.h;
   hp: number = C.hp;
   readonly maxHp: number = C.hp;
-  state: MachineState = 'intro';
+  state: MachineState = 'prelude';
   timer = 0;
   invuln = 0;
   /** Центр робота по горизонтали и низ корпуса (координаты мира). */
@@ -66,6 +67,8 @@ export class Machine implements BossBase {
   fist: Fist | null = null;
   /** Свет погашен. */
   dark = false;
+  /** Кадр вступления. */
+  preludeT = 0;
 
   constructor(
     /** Арена (левый верх — начало координат). */
@@ -92,6 +95,26 @@ export class Machine implements BossBase {
   /** Фаза: 0, 1, 2 (ТЗ: по 4 попадания). */
   get phase(): number {
     return Math.min(2, Math.floor((this.maxHp - this.hp) / C.hpPerPhase));
+  }
+
+  /** Насколько темно: 0 — свет горит, 1 — темно (вступление гасит свет медленно). */
+  get darkness(): number {
+    if (this.state === 'prelude') return Math.min(1, this.preludeT / C.prelude.dimFrames);
+    // Приветствие — уже в темноте (свет погас на вступлении).
+    if (this.state === 'intro') return 1;
+    return this.dark ? 1 : 0;
+  }
+
+  /** Насколько робот проявился из темноты (вступление), 0…1. */
+  get appear(): number {
+    if (this.state !== 'prelude') return 1;
+    return Math.max(0, Math.min(1, (this.preludeT - C.prelude.dimFrames) / C.prelude.appearFrames));
+  }
+
+  /** Вступление кончилось — пора приветствию. */
+  get preludeDone(): boolean {
+    const P = C.prelude;
+    return this.preludeT >= P.dimFrames + P.appearFrames + P.holdFrames;
   }
 
   /** Робот на экране (не за верхним краем). */
@@ -150,7 +173,11 @@ export class Machine implements BossBase {
 
   get harmful(): boolean {
     return (
-      this.state !== 'intro' && this.state !== 'defeated' && this.state !== 'air' && this.onScreen
+      this.state !== 'prelude' &&
+      this.state !== 'intro' &&
+      this.state !== 'defeated' &&
+      this.state !== 'air' &&
+      this.onScreen
     );
   }
 
@@ -167,7 +194,7 @@ export class Machine implements BossBase {
   }
 
   get waiting(): boolean {
-    return this.state === 'intro';
+    return this.state === 'intro' || this.state === 'prelude';
   }
 
   get flying(): boolean {
@@ -178,10 +205,12 @@ export class Machine implements BossBase {
     return 0;
   }
 
+  /** Конец приветствия: свет уже погашен вступлением — сразу подскок. */
   begin(_world: BossWorld): void {
     if (this.state !== 'intro') return;
-    this.state = 'lights';
-    this.timer = C.lightsFrames;
+    this.dark = true;
+    this.state = 'hop';
+    this.timer = 0;
   }
 
   hit(world: BossWorld): boolean {
@@ -226,17 +255,13 @@ export class Machine implements BossBase {
       if (++this.fist.t >= F.outFrames + F.holdFrames + F.backFrames) this.fist = null;
     }
     switch (this.state) {
+      case 'prelude':
+        if (++this.preludeT && this.preludeDone) this.state = 'intro';
+        return;
       case 'intro':
         return;
       case 'defeated':
         this.timer++;
-        return;
-      case 'lights':
-        if (--this.timer <= 0) {
-          this.dark = true;
-          this.state = 'hop';
-          this.timer = 0;
-        }
         return;
       case 'hop': {
         // Подъём на 48 px и обратно (вступление оригинала).

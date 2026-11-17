@@ -178,6 +178,10 @@ export class World
 
   step(inputs: Readonly<Partial<Record<PlayerId, InputView>>>): void {
     if (this.frozen || this.gameOver) return;
+    if (this.boss instanceof Machine && this.boss.state === 'prelude') {
+      this.stepPrelude(this.boss);
+      return;
+    }
     this.frame++;
     if (this.panicFrames > 0 && --this.panicFrames === 0) this.panic = 0;
     this.tickTimer();
@@ -229,9 +233,20 @@ export class World
       this.boss = boss;
       this.enemies = [];
       this.projectiles = [];
+      // Машина Конца Истории: сначала вступление (свет гаснет, робот проявляется), реплика — потом.
+      if (boss instanceof Machine && boss.state === 'prelude') return;
       this.frozen = true;
       this.emit({ type: 'bossIntro', boss: seg.boss });
     }
+  }
+
+  /** Вступление финального босса: герои стоят, идёт только оно; кончилось — реплика. */
+  private stepPrelude(b: Machine): void {
+    this.frame++;
+    b.update(this);
+    if (b.state !== 'intro') return;
+    this.frozen = true;
+    this.emit({ type: 'bossIntro', boss: b.name });
   }
 
   private createBoss(seg: Segment): Boss | null {
@@ -324,7 +339,8 @@ export class World
 
   /** Свет погашен: арена Микитко или мигающий свет портретного зала. */
   get dark(): boolean {
-    if (this.boss instanceof Mikitko || this.boss instanceof Machine) return this.boss.dark;
+    if (this.boss instanceof Mikitko) return this.boss.dark;
+    if (this.boss instanceof Machine) return this.boss.darkness > 0;
     if (!this.level.flicker) return false;
     const H = ARCHIVE_HALL;
     const t = this.frame % (H.litFrames + H.flickerFrames + H.darkFrames);
@@ -335,7 +351,8 @@ export class World
 
   /** Насколько темно: на арене — чёрная тьма, в зале — синие силуэты. */
   get darkness(): { color: number; alpha: number } {
-    return this.boss instanceof Mikitko || this.boss instanceof Machine
+    if (this.boss instanceof Machine) return { color: 0x000000, alpha: this.boss.darkness };
+    return this.boss instanceof Mikitko
       ? { color: 0x000000, alpha: 1 }
       : { color: ARCHIVE_HALL.darkColor, alpha: ARCHIVE_HALL.darkAlpha };
   }

@@ -15,6 +15,9 @@ const arena = () => parseTiledLevel(LEVELS[9]!.find((p) => p.artTileset === 'lev
 
 function arenaWorld(seed = 1): World {
   const w = new World(arena(), [{ id: 1, hero: 'sergey' }], seed);
+  // Вступление: свет гаснет, робот проявляется; потом реплика (мир встаёт) — и бой.
+  const idle = new TestInput();
+  while (!w.frozen) w.step({ 1: idle.hold() });
   w.drainEvents();
   w.resume();
   return w;
@@ -37,13 +40,37 @@ function stepUntil(w: World, cond: () => boolean, max = 4000): number {
 const FLOOR = MACHINE.floorY;
 
 describe('Machine of the End of History: the original cycle', () => {
-  it('lights go out, the robot hops, flies off, a DANGER sign shows and the orb falls', () => {
+  it('prelude: the light fades slowly, the robot fades in, then the greeting', () => {
+    const w = new World(arena(), [{ id: 1, hero: 'sergey' }], 1);
+    const b = boss(w);
+    expect(w.frozen).toBe(false);
+    expect(b.darkness).toBe(0);
+    const idle = new TestInput();
+    const seen: number[] = [];
+    let intro = false;
+    for (let f = 0; f < 600 && !intro; f++) {
+      w.step({ 1: idle.hold() });
+      seen.push(b.darkness);
+      intro = w.drainEvents().some((e) => e.type === 'bossIntro');
+    }
+    expect(intro).toBe(true);
+    // Гаснет постепенно, не скачком; к приветствию робот уже виден целиком.
+    expect(seen.filter((d) => d > 0 && d < 1).length).toBeGreaterThan(60);
+    expect(b.appear).toBe(1);
+    expect(b.harmful).toBe(false);
+    // На приветствии свет не возвращается.
+    expect(b.darkness).toBe(1);
+    expect(w.dark).toBe(true);
+    w.resume();
+    expect(b.state).toBe('hop');
+  });
+
+  it('the robot hops, flies off, a DANGER sign shows and the orb falls', () => {
     const w = arenaWorld();
     const b = boss(w);
     w.setGod(true);
-    expect(w.dark).toBe(false);
-    stepUntil(w, () => b.state === 'hop');
     expect(w.dark).toBe(true);
+    stepUntil(w, () => b.state === 'stand');
     stepUntil(w, () => b.state === 'takeoff');
     const from = b.cx;
     stepUntil(w, () => b.state === 'air');

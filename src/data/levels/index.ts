@@ -75,6 +75,8 @@ export interface LevelPart {
   /** Имя тайлсета арта в карте Tiled и URL его картинки. */
   readonly artTileset: string;
   readonly artUrl: string;
+  /** Свой трек части (побег уровня 9); по умолчанию — трек уровня. */
+  readonly music?: string;
 }
 
 /**
@@ -138,7 +140,12 @@ export const LEVELS: Partial<Record<LevelId, readonly LevelPart[]>> = {
     { map: level9Danger as TiledMap, artTileset: 'level9_5', artUrl: level9DangerArt },
     { map: level9Simes as TiledMap, artTileset: 'level9_simes', artUrl: level9SimesArt },
     { map: level9Arena as TiledMap, artTileset: 'level9_arena', artUrl: level9ArenaArt },
-    { map: level9Escape as TiledMap, artTileset: 'level9_escape', artUrl: level9EscapeArt },
+    {
+      map: level9Escape as TiledMap,
+      artTileset: 'level9_escape',
+      artUrl: level9EscapeArt,
+      music: 'escape',
+    },
   ],
 };
 

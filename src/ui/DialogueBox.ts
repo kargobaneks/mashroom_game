@@ -34,15 +34,22 @@ export class DialogueBox {
     this.scene = scene;
     const b = DIALOGUE.box;
     const p = DIALOGUE.padding;
+    // Без имени говорящего текст начинается сразу сверху; окно растёт под весь текст.
+    const top = b.y + p + (speaker ? 14 : 0);
+    const sp = uiText(scene, b.x + p, b.y + p, speaker, { color: PALETTE.peach });
+    this.body = uiText(scene, b.x + p, top, text);
+    this.body.setMaxWidth(b.w - p * 2);
+    const h = Math.max(b.h, top - b.y + this.body.height + p);
+    this.body.setText('');
     const bg = scene.add
-      .rectangle(b.x, b.y, b.w, b.h, PALETTE.black)
+      .rectangle(b.x, b.y, b.w, h, PALETTE.black)
       .setOrigin(0)
       .setStrokeStyle(1, PALETTE.white);
-    const sp = uiText(scene, b.x + p, b.y + p, speaker, { color: PALETTE.peach });
-    this.body = uiText(scene, b.x + p, b.y + p + 14, '');
-    this.body.setMaxWidth(b.w - p * 2);
+    // Рамка — под текстом.
+    bg.setDepth(DIALOGUE.depth - 1);
     this.objects = [bg, sp, this.body];
-    for (const o of [bg, sp, this.body]) o.setScrollFactor(0).setDepth(DIALOGUE.depth);
+    bg.setScrollFactor(0);
+    for (const o of [sp, this.body]) o.setScrollFactor(0).setDepth(DIALOGUE.depth);
   }
 
   get complete(): boolean {

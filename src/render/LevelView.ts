@@ -512,6 +512,56 @@ export class LevelView {
 
   private readonly machineParts = { trim: {}, hat: {}, jet: {}, fist: {} };
   private danger: Phaser.GameObjects.BitmapText | null = null;
+  /** Минутная стрелка циферблата и красные лампы у пола (арена финального босса). */
+  private machineGfx: Phaser.GameObjects.Graphics | null = null;
+  /** Счётчик кадров для ламп и стрелки — идёт и во время реплики, когда мир стоит. */
+  private animFrame = 0;
+  /** Стрелка на приветствии: в какую сторону сейчас отклонена. */
+  private handSwing: -1 | 1 = 1;
+
+  /**
+   * Кадр, пока мир стоит (реплика): на приветствии финального босса мигают лампы и тикает
+   * стрелка. Возвращает true, когда стрелка дёрнулась (сцена играет «тик»).
+   */
+  idleTick(): boolean {
+    const b = this.world.boss;
+    if (!(b instanceof Machine) || b.state !== 'intro') return false;
+    this.animFrame++;
+    const ticked = this.animFrame % MACHINE.tickFrames === 0;
+    if (ticked) this.handSwing = this.handSwing > 0 ? -1 : 1;
+    this.drawMachineExtras(b);
+    return ticked;
+  }
+
+  /** Красные лампы вдоль пола и минутная стрелка (на 12; на приветствии — туда-сюда). */
+  private drawMachineExtras(b: Machine): void {
+    this.machineGfx ??= this.scene.add.graphics().setDepth(DEPTH.boss + 0.02);
+    const g = this.machineGfx.clear();
+    const f = this.animFrame;
+    // Лампы мигают через одну — на вступлении и всю драку.
+    const floor = b.arena.y + MACHINE.floorY;
+    for (let i = 0; i < 7; i++) {
+      const x = b.arena.x + 20 + i * 36;
+      const lit = (Math.floor(f / 12) + i) % 2 === 0;
+      g.fillStyle(0x000000, 1).fillRect(x - 4, floor + 2, 8, 6);
+      g.fillStyle(lit ? 0xf83800 : 0x380000, 1).fillRect(x - 3, floor + 3, 6, 4);
+      if (lit) g.fillStyle(0xfcbcb0, 1).fillRect(x - 1, floor + 4, 2, 2);
+    }
+    if (b.defeated || b.state === 'air' || b.appear <= 0) return;
+    // Минутная стрелка: центр циферблата (46, 22) в спрайте 96×96.
+    const S = MACHINE.sprite;
+    const cx = b.cx - S.w / 2 + 46;
+    const cy = b.bottom - S.h + 22;
+    const a = -Math.PI / 2 + (b.state === 'intro' ? this.handSwing * 0.35 : 0);
+    g.fillStyle(0x000000, b.appear);
+    for (let k = 0; k <= 8; k++)
+      g.fillRect(
+        Math.round(cx + Math.cos(a) * k - 0.5),
+        Math.round(cy + Math.sin(a) * k - 0.5),
+        1,
+        1,
+      );
+  }
 
   /**
    * Машина Конца Истории: три слоя 96×96 по низу корпуса (сталь, рубашка и циферблат, цилиндр),
@@ -521,8 +571,10 @@ export class LevelView {
     const S = MACHINE.sprite;
     const frame = `p${b.phase + 1}`;
     const rect = { x: b.cx - S.w / 2, y: b.bottom - S.h, w: S.w, h: S.h };
+    this.animFrame++;
+    this.drawMachineExtras(b);
     const visible = !b.defeated
-      ? b.state !== 'air' && (b.invuln === 0 || blink(b.invuln))
+      ? b.state !== 'air' && b.appear > 0 && (b.invuln === 0 || blink(b.invuln))
       : b.timer < MACHINE.outroFrames - 30 && f % 4 < 3;
     const flash = b.telegraphing && f % 8 < 4;
     const layers = [
@@ -537,6 +589,7 @@ export class LevelView {
         rect,
         depth: DEPTH.boss + i * 0.01,
         visible,
+        alpha: b.appear,
         flash: flash && i === 0,
       }),
     );

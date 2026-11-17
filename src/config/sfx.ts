@@ -6,6 +6,16 @@ import type { SfxPreset } from '../systems/Synth';
  * На этапе 4 заменяются файлами композитора с теми же ключами.
  */
 export const SFX = {
+  /** «Тик» часов Дефицита Будущего: сухой щелчок. */
+  tick: {
+    wave: 'noise',
+    freq: 5200,
+    freqEnd: 3800,
+    attack: 0,
+    sustain: 0.004,
+    decay: 0.03,
+    volume: 0.4,
+  },
   jump: {
     wave: 'square',
     duty: 0.5,
