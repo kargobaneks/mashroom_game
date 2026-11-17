@@ -5,3 +5,10 @@ dist/
 # Локальные звуки для разработки (см. assets/dev-overrides/README.md), кроме README
 assets/dev-overrides/*
 !assets/dev-overrides/README.md
+
+# Кадры и карты оригинала Chip 'n Dale 2 — только локальные референсы, в репозиторий не кладём
+docs/refs/chr_*.png
+docs/refs/level_*.png
+docs/refs/stage_clear.png
+docs/refs/title.png
+docs/refs/level*/*.png
