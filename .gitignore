@@ -6,9 +6,5 @@ dist/
 assets/dev-overrides/*
 !assets/dev-overrides/README.md
 
-# Кадры и карты оригинала Chip 'n Dale 2 — только локальные референсы, в репозиторий не кладём
-docs/refs/chr_*.png
-docs/refs/level_*.png
-docs/refs/stage_clear.png
-docs/refs/title.png
-docs/refs/level*/*.png
+# Документы и референсы (ТЗ, концепт, журнал, разборы оригинала, фото) — только локально
+docs/
