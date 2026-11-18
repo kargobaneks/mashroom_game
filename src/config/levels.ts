@@ -1,7 +1,7 @@
 /** Уровни и порядок сюжета (ТЗ: «Уровни 1–9», «Порядок сцен»). */
 export type LevelId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 export type ParkLevelId = 6 | 7 | 8;
-export type BonusGame = 'crane' | 'stars';
+export type BonusGame = 'crane';
 
 export const LEVEL_IDS: readonly LevelId[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 /** Аттракционы медиапарка: проходятся в любом порядке, каждый даёт ключ. */
@@ -35,7 +35,6 @@ export const STORY: readonly StoryStep[] = [
   { kind: 'cutscene', id: 'l4_end' },
   { kind: 'level', level: 5 },
   { kind: 'cutscene', id: 'l5_end' },
-  { kind: 'bonus', game: 'stars' },
   { kind: 'park' },
   { kind: 'level', level: 9 },
   { kind: 'ending' },

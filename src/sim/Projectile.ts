@@ -54,6 +54,8 @@ export class Projectile implements Rect {
   landed = false;
   /** Летит сквозь стены и пол (второй обломок шара проваливается сквозь пол, как в оригинале). */
   ghost = false;
+  /** Не ранит (обломок шара, который ляжет на пол: иначе он бьёт героя в левом углу, 18.11). */
+  harmless = false;
 
   update(world: World): void {
     this.vy += this.gravity;

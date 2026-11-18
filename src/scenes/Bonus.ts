@@ -1,6 +1,5 @@
 import { spriteFrameName } from '../art/sprites';
 import { CLAW } from '../config/bonus';
-import type { BonusGame } from '../config/levels';
 import { DISPLAY } from '../config/display';
 import { SPRITES_TEXTURE } from '../render/spriteAtlas';
 import { ClawGame } from '../sim/bonus/ClawGame';
@@ -30,9 +29,8 @@ const SCORE_Y = 222;
  * Бонус-игры между уровнями (ТЗ: «События между уровнями»). «Кран» — автомат с мерчем
  * подкаста: кружка = сердце, звезда = жизнь, 30 секунд, в коопе у каждого свой кран.
  * Выигрыш добавляется к сердцам и жизням, которые перейдут в следующий уровень.
- * «Звёзды» (после уровня 5) — пока заглушка.
  */
-export class Bonus extends BaseScene<{ game: BonusGame }> {
+export class Bonus extends BaseScene<{ game: 'crane' }> {
   private claw: ClawGame | null = null;
   private ids: PlayerId[] = [1];
   private sprites = new Map<object, Phaser.GameObjects.Sprite>();
@@ -46,7 +44,7 @@ export class Bonus extends BaseScene<{ game: BonusGame }> {
     super('Bonus');
   }
 
-  protected build({ game }: { game: BonusGame }): void {
+  protected build(): void {
     this.claw = null;
     this.sprites = new Map();
     this.cables = [];
@@ -54,12 +52,6 @@ export class Bonus extends BaseScene<{ game: BonusGame }> {
     this.result = null;
     this.delivered = 0;
     this.cameras.main.setBackgroundColor(PALETTE.black);
-    if (game !== 'crane') {
-      uiText(this, 32, 64, t('scene.bonus'));
-      uiText(this, 32, 80, t(`bonus.${game}`), { color: PALETTE.peach });
-      uiText(this, 32, 208, t('hint.confirm'), { color: PALETTE.gray });
-      return;
-    }
     this.ids = this.run.players === 2 ? [1, 2] : [1];
     this.claw = new ClawGame(this.ids, this.run.step + 1);
     this.drawMachine();
@@ -138,10 +130,7 @@ export class Bonus extends BaseScene<{ game: BonusGame }> {
 
   protected tick(): void {
     const g = this.claw;
-    if (!g) {
-      if (this.controls.anyPressed('jump', 'start')) this.go({ type: 'done' });
-      return;
-    }
+    if (!g) return;
     if (this.result) {
       if (this.controls.anyPressed('jump', 'start'))
         this.go({ type: 'done', carry: this.carryOut() });

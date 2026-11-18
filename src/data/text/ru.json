@@ -50,7 +50,6 @@
   "wire.meaning.result": "Бомба гаснет. +1 жизнь!",
   "wire.hype.result": "Бах! Конфетти. Никто не пострадал.",
   "bonus.crane": "Кран",
-  "bonus.stars": "Звёзды",
   "bonus.crane.help": "← → — кран, Z — опустить. Кружка ♥, звезда — жизнь",
   "bonus.crane.over": "ВРЕМЯ ВЫШЛО!",
   "bonus.crane.result": "{who}: ♥ +{hearts}  ★ +{lives}",

@@ -806,7 +806,7 @@ export class World
 
   private resolveProjectiles(): void {
     for (const pr of this.projectiles) {
-      if (!pr.alive) continue;
+      if (!pr.alive || pr.harmless) continue;
       for (const p of this.players) {
         if (!p.active || !overlaps(p, pr)) continue;
         if (p.state === 'hidden' && !pr.ignoresHide) {

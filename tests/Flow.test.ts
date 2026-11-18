@@ -42,7 +42,7 @@ const label = (r: Route): string => {
 describe('Flow', () => {
   it('runs the whole game in story order (TZ «Порядок сцен»)', () => {
     const routes = play(newRun(1, 'sergey'), [
-      ...Array<FlowEvent>(14).fill(done),
+      ...Array<FlowEvent>(13).fill(done),
       pick(6),
       done,
       pick(7),
@@ -67,7 +67,6 @@ describe('Flow', () => {
       'Cutscene:l4_end',
       'Level:5',
       'Cutscene:l5_end',
-      'Bonus:stars',
       'ParkHub',
       'Level:6',
       'ParkHub',

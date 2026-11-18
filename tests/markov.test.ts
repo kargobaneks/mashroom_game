@@ -179,7 +179,11 @@ describe('Markov crane arena (level 8)', () => {
       const spot = b.craneX - 16;
       const ballSafe = b.state === 'drive' || b.state === 'rise';
       const s = w.items.find((i) => i.kind === 'scrap' && i.canBePickedUp);
-      if (!p.carrying && s && (ballSafe || cx < ball.x - 4)) {
+      const underBall = p.x < ball.x + ball.w + 2 && p.x + p.w > ball.x - 2;
+      if (b.state === 'aim' && underBall) {
+        // Шар качнулся, а герой под ним: выйти на ближнюю сторону (справа — промежуток).
+        keys.push(cx > ball.x + ball.w / 2 - 6 ? 'right' : 'left');
+      } else if (!p.carrying && s && (ballSafe || cx < ball.x - 4)) {
         const sx = s.x + s.w / 2;
         // Подойти с ближней стороны вплотную (обломок твёрдый).
         const side = cx > sx || sx - 14 < 6 ? sx + 14 : sx - 14;
@@ -199,19 +203,30 @@ describe('Markov crane arena (level 8)', () => {
         jumpT = 0;
         keys.push('jump');
       } else if (!ballSafe && cx < ball.x && cx > ball.x - 70) {
-        // Шар вот-вот ударит рядом: отойти влево от обломков.
-        keys.push('left');
+        // Шар вот-вот ударит рядом: пока висит — пройти под ним в промежуток, иначе — влево.
+        const under = ball.x + ball.w + 4 - (p.x - 2);
+        if (b.state === 'aim' && b.timer * 1.2 > under) go(spot);
+        else keys.push('left');
       }
       w.step({ 1: input.hold(...keys) });
     }
     return { won: false, frames: 0, hits };
   }
 
-  it('a button-only bot beats Markov', () => {
-    for (const seed of [1, 2, 3]) {
+  it('a button-only bot beats Markov without taking hits', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
       const r = bot(seed);
       expect(r.won, `seed ${seed}: hits ${r.hits}`).toBe(true);
-      expect(r.frames).toBeLessThan(60 * 300);
+      expect(r.hits, `seed ${seed}`).toBe(0);
+      expect(r.frames).toBeLessThan(60 * 90);
     }
   }, 120_000);
+
+  it('room to dodge: a 56 px gap between ball and tracks, a 20 px corner left of the ball', () => {
+    const w = arenaWorld();
+    const b = boss(w);
+    expect(b.tracks.x - (b.ball.x + b.ball.w)).toBe(56);
+    expect(b.arena.x + MARKOV.xMin + MARKOV.ball.dx - MARKOV.ball.size / 2 - b.arena.x).toBe(20);
+    expect(MARKOV.aimFrames).toBeGreaterThanOrEqual(45);
+  });
 });

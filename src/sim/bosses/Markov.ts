@@ -229,10 +229,11 @@ export class Markov implements BossBase {
     const cx = b.x + b.w / 2;
     const cy = this.floorY - 10;
     const keep = (world as MarkovWorld).scrapOnArena() === 0;
-    // Левый — дугой на пол перед шаром; правый сразу уходит вниз сквозь пол (как в оригинале),
-    // поэтому место между шаром и краном при ударе безопасно.
+    // Левый — дугой на пол перед шаром, не ранит; правый сразу уходит вниз сквозь пол (как
+    // в оригинале), поэтому место между шаром и краном при ударе безопасно.
     const left = new Projectile('scrap', cx - 8, cy, 16, 12, -D.vx, D.vy, D.gravity);
     left.landsAsItem = keep;
+    left.harmless = true;
     world.spawn(left);
     const right = new Projectile('scrap', cx, cy, 16, 12, 0, 1, D.gravity);
     right.ghost = true;
