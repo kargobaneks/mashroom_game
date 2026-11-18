@@ -67,7 +67,9 @@ export function buildLevel7Entrance() {
   E(1, 'porcupine', 8, 13);
   E(1, 'diveMoth', 8, 2);
   barrel(1, 11, 14, 11, 13, true);
-  block(1, 13, 11);
+  // Ступень к балке — малая бочка на большой (не ящики: их бросают, и подъём пропадал).
+  barrel(1, 14, 15, 9, 11);
+  block(1, 11, 11);
   beam(1, 7, 6, 15);
   barrel(1, 7, 11, 5, 7);
   E(1, 'porcupine', 11, 5);
