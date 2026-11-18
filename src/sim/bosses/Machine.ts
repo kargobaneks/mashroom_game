@@ -9,6 +9,9 @@ import type { Point, Rect } from '../geom';
 import { Projectile } from '../Projectile';
 import type { BossBase, BossWorld } from './Boss';
 
+/** Луч фазы 2 — 1,5 px/кадр: у Микитко он стал 3 (18.11), баланс робота проверен на 1,5. */
+const MACHINE_BEAM_SPEED = 1.5;
+
 /**
  * prelude — вступление: свет медленно гаснет, мигают красные лампы, робот проявляется;
  * intro — ждёт конца реплики (стрелка тикает); hop — подскок на тяге
@@ -488,7 +491,7 @@ export class Machine implements BossBase {
 
   /** Фаза 2, Микитко: луч из руки туда, где герой был в начале знака. */
   private beam(world: BossWorld): void {
-    const b = MIKITKO.beam;
+    const b = { ...MIKITKO.beam, speed: MACHINE_BEAM_SPEED };
     const h = this.hand;
     const tg = this.aimAt ?? world.target(this) ?? { x: this.arena.x, y: this.floorY };
     const dx = tg.x - h.x;

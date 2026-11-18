@@ -305,7 +305,14 @@ export class LevelView {
     for (const pr of w.projectiles)
       draw(pr, {
         id: pr.kind,
-        frame: pr.kind === 'beam' ? alt(f, 3, 'a', 'b') : pr.kind === 'headline' ? 'fly1' : 'idle',
+        frame:
+          pr.kind === 'beam'
+            ? alt(f, 3, 'a', 'b')
+            : pr.kind === 'headline'
+              ? 'fly1'
+              : pr.kind === 'letter'
+                ? pr.glyph
+                : 'idle',
         rect: pr,
         depth: DEPTH.projectile,
         ...(pr.kind === 'beam' ? { angle: Math.atan2(pr.vy, pr.vx) } : {}),
@@ -789,9 +796,9 @@ export class LevelView {
       h: S.h,
     };
     // Рука вытянута, пока заряжает и пока луч уходит.
-    const frame = b.invuln > 0 ? 'hit' : b.telegraphing || b.state === 'shoot' ? 'aim' : 'idle';
+    const frame = b.invuln > 0 ? 'hit' : b.aiming ? 'aim' : 'idle';
     const visible = b.opacity > 0 && (b.invuln === 0 || blink(b.invuln));
-    const flash = b.telegraphing && !blink(b.timer);
+    const flash = b.telegraphing && !blink(b.t);
     const layers = [
       ['mikitkoGhostCoat', this.ghostLayers.coat],
       ['mikitkoGhostHair', this.ghostLayers.hair],

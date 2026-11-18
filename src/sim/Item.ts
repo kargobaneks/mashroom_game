@@ -37,6 +37,8 @@ export class Item implements Body {
   ownerImmune = 0;
   /** Сколько пролетел по горизонтали с момента броска, px. */
   flown = 0;
+  /** Промахнулся — улетает за экран и пропадает (буква на арене Микитко, как камень оригинала). */
+  lostOnMiss = false;
   /** Сброшен краном Бордачёва: пока его не бросил игрок, падая, босса не бьёт. */
   fromCrane = false;
   /** Что спрятано под ящиком: появляется на его месте, когда ящик поднимают. */
@@ -153,6 +155,8 @@ export class Item implements Body {
         else if (this.x + this.w < world.camera.x || this.y + this.h < world.camera.y) {
           // За левый (или верхний) край экрана — исчезает, как в оригинале.
           this.state = 'gone';
+        } else if (this.lostOnMiss) {
+          if (!world.camera.sees(this, 0)) this.state = 'gone';
         } else if (this.throwDir !== 'up' && this.flown >= THROW_PHYSICS.missRange) {
           // Ни во что не попал — падает на ближайшую платформу и остаётся лежать.
           this.drop();

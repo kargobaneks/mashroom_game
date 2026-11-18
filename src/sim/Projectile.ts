@@ -1,4 +1,5 @@
 import type { Rect } from './geom';
+import type { LetterGlyph } from './Item';
 import type { World } from './World';
 
 export type ProjectileKind =
@@ -16,6 +17,7 @@ export type ProjectileKind =
   | 'card'
   | 'pebble'
   | 'scrap'
+  | 'letter'
   | 'spark';
 
 /** Снаряд врага или босса. Ранит игрока при касании, гаснет о стену или за экраном. */
@@ -56,9 +58,13 @@ export class Projectile implements Rect {
   ghost = false;
   /** Не ранит (обломок шара, который ляжет на пол: иначе он бьёт героя в левом углу, 18.11). */
   harmless = false;
+  /** Предел скорости падения (буква арены Микитко падает не быстрее предметов). */
+  maxVy = Infinity;
+  /** Падающая буква: какая (рисунок). */
+  glyph: LetterGlyph = 'yat';
 
   update(world: World): void {
-    this.vy += this.gravity;
+    this.vy = Math.min(this.vy + this.gravity, this.maxVy);
     this.vx += this.ax;
     this.x += this.vx;
     this.y += this.vy;

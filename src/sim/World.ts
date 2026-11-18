@@ -262,10 +262,7 @@ export class World
       return new Bordachev(this.ledgesIn(seg), start ?? { x: seg.x + seg.w / 2, y: seg.y + 160 });
     }
     if (seg.boss === 'mikitko') {
-      const points = this.level.spawns
-        .filter((s) => s.type === 'bossPoint' && contains(seg, s))
-        .map((s) => ({ x: s.x, y: s.y }));
-      return new Mikitko(points, this.floorBelow(seg), seg);
+      return new Mikitko(this.floorBelow(seg), seg);
     }
     if (seg.boss === 'shchelin') return new Shchelin(seg);
     if (seg.boss === 'duo') return new Duo(seg);
@@ -327,14 +324,12 @@ export class World
 
   // ——— арена Микитко ———
 
-  /** Призрак уронил букву. */
-  dropLetter(item: Item): void {
-    this.items.push(item);
-  }
-
-  /** Сколько букв на арене (лежат, падают, в руках, летят). */
+  /** Сколько букв на арене: лежат, в руках, летят, или та, что сейчас ляжет. */
   lettersOnArena(): number {
-    return this.items.filter((i) => i.kind === 'letter' && i.state !== 'gone').length;
+    return (
+      this.items.filter((i) => i.kind === 'letter' && i.state !== 'gone').length +
+      this.projectiles.filter((p) => p.alive && p.landsAsItem && p.kind === 'letter').length
+    );
   }
 
   /** Свет погашен: арена Микитко или мигающий свет портретного зала. */
@@ -383,6 +378,14 @@ export class World
         const card = new Item('card', { x, y: floor });
         card.lock = DUO.cardArmFrames;
         this.items.push(card);
+        continue;
+      }
+      if (pr.kind === 'letter') {
+        // Буква призрака легла на пол (камень оригинала).
+        const x = Math.min(seg.x + seg.w - 16, Math.max(seg.x + 16, pr.x + pr.w / 2));
+        const it = new Item('letter', { x, y: floor });
+        it.glyph = pr.glyph;
+        this.items.push(it);
         continue;
       }
       if (pr.kind === 'scrap') {
@@ -634,11 +637,12 @@ export class World
         this.boss instanceof Shchelin ||
         this.boss instanceof Duo ||
         this.boss instanceof Markov ||
-        this.boss instanceof Machine
+        this.boss instanceof Machine ||
+        this.boss instanceof Mikitko
       ) {
         this.boss.restore();
         this.items = this.items.filter(
-          (i) => i.kind !== 'gear' && i.kind !== 'card' && i.kind !== 'scrap',
+          (i) => i.kind !== 'gear' && i.kind !== 'card' && i.kind !== 'scrap' && i.kind !== 'letter',
         );
       }
       const r = this.respawnPoint();
@@ -675,6 +679,8 @@ export class World
       item.y = dir === 'forward' ? thrower.y : thrower.y + thrower.h - item.h;
     }
     item.launch(thrower, dir, thrower.facing);
+    // Арена Микитко: промах — буква улетает и пропадает (как камень оригинала).
+    item.lostOnMiss = this.boss instanceof Mikitko && item.kind === 'letter';
     if (this.grid.rectHitsSolid(item)) {
       // Бросил вплотную к стене: предмет сразу врезается.
       item.x = pcx - item.w / 2;
@@ -822,7 +828,8 @@ export class World
           break;
         }
         if (this.damagePlayer(p, pr.x + pr.w / 2)) {
-          pr.alive = false;
+          // Буква призрака, задев героя, падает дальше и ложится: оружие не пропадает.
+          if (pr.kind !== 'letter') pr.alive = false;
           break;
         }
       }
